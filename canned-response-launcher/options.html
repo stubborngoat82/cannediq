@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRL — Command Launcher</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="page">
+
+    <!-- ── Header ── -->
+    <header class="page-header">
+      <div class="page-header-left">
+        <div class="page-logo"><span class="page-logo-icon">⚡</span><span>CRL</span></div>
+        <p class="subtitle">Your responses. On command. &nbsp;·&nbsp; <kbd>Ctrl+Space</kbd> to launch.</p>
+      </div>
+      <div id="account-widget" class="account-widget"></div>
+    </header>
+
+    <!-- ── Auth panel ── -->
+    <div id="auth-panel" class="auth-panel" hidden>
+      <div class="auth-box">
+        <div class="auth-header">
+          <h2>Sign in to sync your commands</h2>
+          <p>Free forever on the basics. Sign in for cloud sync, teams, and Pro features.</p>
+        </div>
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="signin">Sign in</button>
+          <button class="auth-tab" data-tab="signup">Create account</button>
+        </div>
+        <form id="auth-form" class="auth-form" novalidate>
+          <div class="form-error" id="auth-error" hidden></div>
+          <label>Email
+            <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required />
+          </label>
+          <label>Password
+            <input id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="btn btn-primary btn-full" id="auth-submit">Sign in</button>
+        </form>
+        <div class="auth-divider"><span>or</span></div>
+        <button id="btn-google" class="btn btn-google btn-full">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continue with Google
+        </button>
+        <p class="auth-confirm-msg" id="auth-confirm-msg" hidden>
+          ✉️ Check your inbox — we sent you a confirmation link.
+        </p>
+      </div>
+    </div>
+
+    <!-- ── Main layout ── -->
+    <main id="main-layout">
+
+      <nav class="tab-nav" id="tab-nav" hidden>
+        <button class="tab-btn active" data-tab="commands">Commands</button>
+        <button class="tab-btn" data-tab="teams">Teams</button>
+        <button class="tab-btn" data-tab="billing">Billing</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+      </nav>
+
+      <!-- ── Commands tab ── -->
+      <div id="tab-commands" class="tab-panel">
+        <div class="cmd-layout">
+          <aside class="stack-sidebar">
+            <div class="stack-sidebar-header">
+              <span>Stacks</span>
+              <button id="btn-new-stack" class="btn btn-ghost btn-xs">+</button>
+            </div>
+            <ul id="stack-list" class="stack-list"></ul>
+          </aside>
+          <section class="cmd-panel">
+            <div class="cmd-panel-header">
+              <div class="cmd-panel-header-left">
+                <h2 id="cmd-panel-title">All Commands</h2>
+                <span id="cmd-panel-count" class="cmd-count-badge">0</span>
+              </div>
+              <div class="cmd-panel-header-right">
+                <input id="cmd-search" class="cmd-search" type="text" placeholder="Filter…" autocomplete="off" />
+                <button id="btn-new-command" class="btn btn-primary btn-sm">+ New Command</button>
+              </div>
+            </div>
+            <div id="cmd-list" class="cmd-list">
+              <div class="cmd-empty">Loading…</div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ── Teams tab ── -->
+      <div id="tab-teams" class="tab-panel" hidden>
+        <div class="teams-page">
+          <div class="section-card">
+            <div class="section-card-header">
+              <div>
+                <h2>Your Teams</h2>
+                <p class="section-desc">Create a team to share a command library with your colleagues.</p>
+              </div>
+              <button id="btn-create-team" class="btn btn-primary btn-sm">+ New Team</button>
+            </div>
+            <div id="teams-list" class="teams-list"><p class="empty-hint">Loading…</p></div>
+          </div>
+          <div class="section-card" id="team-library-card">
+            <div class="section-card-header">
+              <div>
+                <h2>Team Library</h2>
+                <p class="section-desc">Shared categories from teams you belong to.</p>
+              </div>
+            </div>
+            <div id="team-library-list" class="teams-list"><p class="empty-hint">No team categories yet.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Billing tab ── -->
+      <div id="tab-billing" class="tab-panel" hidden>
+        <div id="billing-content" class="billing-page"><p class="empty-hint">Loading…</p></div>
+      </div>
+
+      <!-- ── Settings tab ── -->
+      <div id="tab-settings" class="tab-panel" hidden>
+        <div class="settings-page">
+
+          <!-- AI usage meter -->
+          <div class="settings-section">
+            <div class="settings-section-header">
+              <h2>⚡ AI Commands</h2>
+              <p>Generate text with AI. Included on Pro and Team plans — no API key needed.</p>
+            </div>
+            <div id="ai-usage-content">
+              <!-- Populated by loadSettingsTab() -->
+            </div>
+          </div>
+
+          <!-- Privacy -->
+          <div class="settings-section">
+            <div class="settings-section-header">
+              <h2>Privacy</h2>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-label">
+                <strong>Clipboard access</strong>
+                <span>Required for the <code>{{clipboard}}</code> variable in commands.</span>
+              </div>
+              <label class="toggle-wrap">
+                <input type="checkbox" id="setting-clipboard-enabled" />
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Data -->
+          <div class="settings-section">
+            <div class="settings-section-header">
+              <h2>Data</h2>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-label">
+                <strong>Import / Export</strong>
+                <span>Back up your commands or move them between devices.</span>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button id="btn-export-commands" class="btn btn-ghost btn-sm">Export JSON</button>
+                <button id="btn-import-commands" class="btn btn-ghost btn-sm">Import JSON</button>
+              </div>
+            </div>
+            <input id="import-file-input" type="file" accept=".json" hidden />
+          </div>
+
+          <div class="settings-footer">
+            <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
+            <span id="settings-saved-msg" class="settings-saved-msg" hidden>✓ Saved</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ══ MODALS ══ -->
+
+  <!-- Command editor -->
+  <div id="modal-command" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box modal-box--wide" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="modal-command-title">New Command</h3>
+        <button class="modal-close" id="modal-command-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row form-row--2">
+          <label>Name *
+            <input id="cmd-name" type="text" placeholder="e.g. Follow Up" autocomplete="off" />
+          </label>
+          <label>Stack
+            <select id="cmd-stack"></select>
+          </label>
+        </div>
+        <label>Description
+          <input id="cmd-description" type="text" placeholder="What does this command do?" autocomplete="off" />
+        </label>
+        <label>Command Type
+          <select id="cmd-type">
+            <option value="static">Static — insert saved text immediately</option>
+            <option value="variable">Variable — prompt for placeholder values before inserting</option>
+            <option value="contextAware">Context-Aware — uses page URL, title, selected text automatically</option>
+            <option value="ai">AI — generate text (Pro/Team, 25–100 req/month)</option>
+            <option value="workflow">Workflow — run multiple actions in sequence</option>
+          </select>
+        </label>
+        <label id="cmd-template-label">Template / Content
+          <textarea id="cmd-template" rows="5" placeholder="Your text here. Use {{name}}, {{today}}, {{selectedText}}, {{pageTitle}}, {{currentUrl}}, {{clipboard}}…"></textarea>
+        </label>
+        <label id="cmd-ai-prompt-label" hidden>AI Prompt
+          <textarea id="cmd-ai-prompt" rows="4" placeholder="e.g. Rewrite the following text in a professional tone: {{inputText}}&#10;&#10;Tip: {{inputText}} uses selected text if highlighted, otherwise grabs the whole field. {{selectedText}}, {{pageTitle}}, {{clipboard}} also available."></textarea>
+        </label>
+        <div class="cmd-favorite-row">
+          <label class="cmd-favorite-label">
+            <input type="checkbox" id="cmd-favorite" />
+            <span>★ Mark as favorite (pinned at top of palette)</span>
+          </label>
+        </div>
+
+        <div class="advanced-sections">
+
+          <details class="adv-section">
+            <summary>Triggers <span class="adv-badge" id="triggers-badge">0</span></summary>
+            <div class="adv-content">
+              <p class="adv-hint">Type a trigger in any text field and press Space or Enter to launch. <strong>Ctrl+Space</strong> opens the palette manually.</p>
+              <div id="trigger-list" class="tag-chip-list"></div>
+              <div class="adv-add-row">
+                <select id="trigger-type-select">
+                  <option value="slash">/ Slash command</option>
+                  <option value="text">;; Text expansion</option>
+                </select>
+                <input id="trigger-value-input" type="text" placeholder="/shortcut" />
+                <button type="button" id="btn-add-trigger" class="btn btn-ghost btn-sm">Add</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="adv-section" id="adv-variables">
+            <summary>Variables <span class="adv-badge" id="variables-badge">0</span></summary>
+            <div class="adv-content">
+              <p class="adv-hint">User-input variables appear in a modal before the command launches. Dynamic variables like <code>{{today}}</code>, <code>{{selectedText}}</code>, <code>{{pageTitle}}</code> are always available without defining them.</p>
+              <div id="variable-list" class="tag-chip-list"></div>
+              <div class="adv-add-row">
+                <input id="var-key"   type="text" placeholder="key" style="width:100px" />
+                <input id="var-label" type="text" placeholder="Label" style="width:130px" />
+                <select id="var-type">
+                  <option value="text">text</option>
+                  <option value="textarea">textarea</option>
+                  <option value="dropdown">dropdown</option>
+                  <option value="date">date</option>
+                </select>
+                <label style="font-size:12px;display:flex;align-items:center;gap:4px">
+                  <input type="checkbox" id="var-required" /> required
+                </label>
+                <button type="button" id="btn-add-variable" class="btn btn-ghost btn-sm">Add</button>
+              </div>
+              <div id="var-options-row" class="adv-add-row" hidden>
+                <input id="var-options" type="text" placeholder="Option 1, Option 2, Option 3 (comma-separated)" style="flex:1" />
+              </div>
+            </div>
+          </details>
+
+          <details class="adv-section">
+            <summary>Conditions <span class="adv-badge" id="conditions-badge">0</span></summary>
+            <div class="adv-content">
+              <p class="adv-hint">Restrict this command to specific sites or contexts. All conditions must pass.</p>
+              <div id="condition-list" class="tag-chip-list"></div>
+              <div class="adv-add-row">
+                <select id="cond-type">
+                  <option value="hostname">Hostname</option>
+                  <option value="url">URL</option>
+                  <option value="siteName">Site name</option>
+                  <option value="selectedTextExists">Selected text exists</option>
+                </select>
+                <select id="cond-operator">
+                  <option value="contains">contains</option>
+                  <option value="equals">equals</option>
+                  <option value="startsWith">starts with</option>
+                  <option value="endsWith">ends with</option>
+                  <option value="exists">exists</option>
+                </select>
+                <input id="cond-value" type="text" placeholder="value" />
+                <button type="button" id="btn-add-condition" class="btn btn-ghost btn-sm">Add</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="adv-section">
+            <summary>Actions <span class="adv-badge" id="actions-badge">1</span></summary>
+            <div class="adv-content">
+              <p class="adv-hint">Actions run in order when the command executes. The default is to insert text at the cursor.</p>
+              <div id="action-list" class="tag-chip-list"></div>
+              <div class="adv-add-row">
+                <select id="action-type-select">
+                  <option value="insert_text">Insert text at cursor</option>
+                  <option value="replace_selection">Replace selected text</option>
+                  <option value="copy_to_clipboard">Copy to clipboard</option>
+                  <option value="open_url">Open URL (template = URL)</option>
+                  <option value="submit_form">Submit form (asks confirmation)</option>
+                </select>
+                <button type="button" id="btn-add-action" class="btn btn-ghost btn-sm">Add</button>
+              </div>
+            </div>
+          </details>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-command-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-command-save"   class="btn btn-primary">Save Command</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stack editor -->
+  <div id="modal-stack" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <h3 id="modal-stack-title">New Stack</h3>
+      <div class="form-row form-row--2">
+        <label>Name *
+          <input id="stack-name-input" type="text" placeholder="e.g. Sales" autocomplete="off" />
+        </label>
+        <label>Color
+          <input id="stack-color-input" type="color" value="#6366f1" style="height:38px;padding:2px 4px;width:100%" />
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-stack-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-stack-save"   class="btn btn-primary">Save Stack</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Team -->
+  <div id="modal-create-team" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <h3>New Team</h3>
+      <label>Team name
+        <input id="modal-team-name-input" type="text" placeholder="e.g. Support Team" autocomplete="off" />
+      </label>
+      <div class="modal-footer">
+        <button id="modal-create-team-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-create-team-save"   class="btn btn-primary">Create Team</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invite Member -->
+  <div id="modal-invite-member" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <h3>Invite Team Member</h3>
+      <div class="form-error" id="invite-error" hidden></div>
+      <label>Email address
+        <input id="modal-invite-email-input" type="email" placeholder="colleague@example.com" autocomplete="off" />
+      </label>
+      <div class="modal-footer">
+        <button id="modal-invite-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-invite-save"   class="btn btn-primary">Send Invite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team Category -->
+  <div id="modal-team-category" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <h3>New Team Category</h3>
+      <label>Category name
+        <input id="modal-team-cat-name-input" type="text" placeholder="e.g. Support Scripts" autocomplete="off" />
+      </label>
+      <div class="modal-footer">
+        <button id="modal-team-cat-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-team-cat-save"   class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+  <script src="api-client.js"></script>
+  <script src="core/storage.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

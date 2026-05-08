@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pricing — cannedIQ</title>
+  <meta name="description" content="Simple, honest pricing. Launch your best responses instantly with Commands, Triggers, Stacks, and AI-powered workflows." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy:   '#0F172A',
+            card:   '#111827',
+            border: '#1E293B',
+            blue:   '#3B82F6',
+            violet: '#8B5CF6',
+            muted:  '#94A3B8',
+          },
+          fontFamily: { sans: ['-apple-system','BlinkMacSystemFont','Segoe UI','system-ui','sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0F172A; color: #F8FAFC; }
+
+    /* Logo pills */
+    .logo-pill    { background: rgba(255,255,255,.97); border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,.25); display:inline-flex; align-items:center; justify-content:center; padding:4px; }
+    .logo-pill-lg { background: rgba(255,255,255,.97); border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,.3); display:inline-flex; align-items:center; justify-content:center; padding:10px 20px; }
+
+    /* Gradient text */
+    .grad        { background: linear-gradient(135deg,#3B82F6 0%,#8B5CF6 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .grad-violet { background: linear-gradient(135deg,#8B5CF6 0%,#EC4899 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+    /* Plan card */
+    .plan-card { background:#111827; border:1.5px solid #1E293B; border-radius:20px; padding:28px 24px; display:flex; flex-direction:column; gap:20px; transition:border-color .2s,box-shadow .2s; position:relative; overflow:visible; }
+    .plan-card:hover { border-color:rgba(59,130,246,.4); box-shadow:0 0 0 4px rgba(59,130,246,.07); }
+    .plan-card.popular   { border-color:#3B82F6; box-shadow:0 0 0 4px rgba(59,130,246,.12); }
+    .plan-card.ai-plan   { border-color:#8B5CF6; box-shadow:0 0 0 4px rgba(139,92,246,.12); }
+    .plan-card.team-plan { border-color:#10B981; }
+
+    .popular-badge { position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:#3B82F6; color:#fff; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:4px 14px; border-radius:20px; white-space:nowrap; }
+    .ai-badge   { background:linear-gradient(135deg,#8B5CF6,#EC4899); }
+    .team-badge { background:#10B981; }
+
+    /* Feature list */
+    .feat-list li { display:flex; gap:10px; align-items:baseline; font-size:13.5px; color:#CBD5E1; line-height:1.5; }
+    .feat-list li.off { color:#334155; }
+    .feat-check { color:#34D399; flex-shrink:0; font-size:13px; width:14px; }
+    .feat-list li.off .feat-check { color:#334155; }
+
+    /* CTA buttons */
+    .btn-primary { background:linear-gradient(135deg,#3B82F6,#2563EB); color:#fff; border:none; border-radius:12px; padding:13px 24px; font-size:15px; font-weight:600; cursor:pointer; width:100%; transition:opacity .15s,transform .1s; }
+    .btn-primary:hover { opacity:.9; }
+    .btn-primary:active { transform:scale(.98); }
+    .btn-violet { background:linear-gradient(135deg,#8B5CF6,#7C3AED); }
+    .btn-green  { background:linear-gradient(135deg,#10B981,#059669); }
+    .btn-ghost  { background:transparent; color:#64748B; border:1.5px solid #1E293B; border-radius:12px; padding:13px 24px; font-size:15px; font-weight:500; cursor:pointer; width:100%; transition:border-color .15s,color .15s; }
+    .btn-ghost:hover { border-color:#3B82F6; color:#94A3B8; }
+
+    /* Billing toggle */
+    .toggle-pill { display:flex; background:#111827; border:1.5px solid #1E293B; border-radius:12px; padding:4px; gap:4px; }
+    .toggle-pill button { padding:8px 20px; border-radius:9px; border:none; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s,color .15s; background:transparent; color:#64748B; }
+    .toggle-pill button.active { background:#1E293B; color:#F8FAFC; }
+
+    /* Comparison table */
+    .cmp-table { width:100%; border-collapse:collapse; }
+    .cmp-table th,.cmp-table td { padding:12px 16px; text-align:center; font-size:13.5px; border-bottom:1px solid #1E293B; }
+    .cmp-table th:first-child,.cmp-table td:first-child { text-align:left; padding-left:0; color:#CBD5E1; }
+    .cmp-table thead th { color:#64748B; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #1E293B; }
+    .cmp-table .section-row td { color:#64748B; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding-top:24px; padding-bottom:8px; border-bottom:none; }
+    .cmp-check { color:#34D399; font-size:16px; }
+    .cmp-dash  { color:#1E293B; font-size:16px; }
+    .cmp-highlight { color:#F8FAFC; font-weight:600; }
+
+    /* FAQ */
+    details summary { list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:18px 0; font-size:15px; font-weight:500; color:#F8FAFC; border-bottom:1px solid #1E293B; }
+    details summary::-webkit-details-marker { display:none; }
+    details summary::after { content:'+'; font-size:20px; color:#64748B; transition:transform .2s; flex-shrink:0; }
+    details[open] summary::after { transform:rotate(45deg); }
+    details p { color:#94A3B8; font-size:14px; line-height:1.7; padding:12px 0 18px; border-bottom:1px solid #1E293B; margin:0; }
+
+    /* Seats input */
+    .seats-input { width:60px; background:#1E293B; border:1.5px solid #334155; border-radius:8px; color:#F8FAFC; font-size:14px; font-family:inherit; padding:6px 10px; outline:none; }
+    .seats-input:focus { border-color:#3B82F6; }
+
+    /* Annual savings badge */
+    .save-badge { display:inline-block; background:rgba(52,211,153,.15); color:#34D399; font-size:11px; font-weight:700; border-radius:6px; padding:2px 8px; margin-left:6px; }
+
+    /* Scroll fade-in */
+    .fade-in { opacity:0; transform:translateY(24px); transition:opacity .5s ease,transform .5s ease; }
+    .fade-in.visible { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+<body class="font-sans">
+
+  <!-- ══ NAV ══ -->
+  <nav class="sticky top-0 z-50 border-b border-[#1E293B] backdrop-blur bg-[#0F172A]/90">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5 no-underline">
+        <span class="logo-pill"><img src="assets/IQicon.png" width="28" height="28" alt="cannedIQ icon" /></span>
+        <span class="text-[15px] font-bold text-white tracking-tight">canned<span class="text-blue-400">IQ</span></span>
+      </a>
+      <div class="hidden md:flex items-center gap-6">
+        <a href="/#features" class="text-sm text-[#94A3B8] hover:text-white transition-colors no-underline">Features</a>
+        <a href="pricing.html" class="text-sm text-white font-semibold no-underline">Pricing</a>
+        <a href="#faq" class="text-sm text-[#94A3B8] hover:text-white transition-colors no-underline">FAQ</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="triggerCheckout('free')" class="text-sm text-[#94A3B8] hover:text-white transition-colors px-4 py-2 font-medium">Start Free</button>
+        <button onclick="triggerCheckout('pro')" class="text-sm bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold transition-colors">Upgrade to Pro</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══ HERO ══ -->
+  <section class="text-center pt-20 pb-14 px-6">
+    <div class="logo-pill-lg mx-auto mb-8 inline-flex">
+      <img src="assets/cannediqlogo.png" height="44" alt="cannedIQ" />
+    </div>
+    <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">
+      Stop typing.<br><span class="grad">Start executing.</span>
+    </h1>
+    <p class="text-lg text-[#94A3B8] max-w-xl mx-auto mb-8 leading-relaxed">
+      Launch your best responses instantly with Commands, Triggers, Stacks, and AI-powered workflows.
+    </p>
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+      <button onclick="triggerCheckout('free')" class="px-8 py-3.5 rounded-xl border-2 border-[#1E293B] text-[#94A3B8] hover:border-blue-600 hover:text-white font-semibold transition-all text-sm">Start Free — No credit card</button>
+      <button onclick="triggerCheckout('pro')"  class="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-all text-sm">Upgrade to Pro →</button>
+    </div>
+  </section>
+
+  <!-- ══ BILLING TOGGLE ══ -->
+  <div class="flex flex-col items-center gap-2 mb-14 px-6">
+    <div class="toggle-pill" id="billing-toggle">
+      <button class="active" data-period="monthly" onclick="setPeriod('monthly')">Monthly</button>
+      <button data-period="annual" onclick="setPeriod('annual')">Annual <span class="save-badge">Save 20%</span></button>
+    </div>
+    <p id="annual-note" class="text-xs text-[#64748B] hidden">Billed annually · equivalent monthly price shown</p>
+  </div>
+
+  <!-- ══ PLAN CARDS ══ -->
+  <section class="max-w-6xl mx-auto px-6 mb-20">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+
+      <!-- Free -->
+      <div class="plan-card fade-in">
+        <div>
+          <div class="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-3">Free</div>
+          <div class="flex items-end gap-1 mb-1">
+            <span class="text-4xl font-extrabold text-white">$0</span>
+          </div>
+          <p class="text-xs text-[#64748B]">Forever free</p>
+        </div>
+        <ul class="feat-list flex flex-col gap-2.5">
+          <li><span class="feat-check">✓</span> 25 Commands</li>
+          <li><span class="feat-check">✓</span> 3 Stacks</li>
+          <li><span class="feat-check">✓</span> Basic triggers &amp; text expansion</li>
+          <li><span class="feat-check">✓</span> Basic variables</li>
+          <li><span class="feat-check">✓</span> Local storage</li>
+          <li class="off"><span class="feat-check">–</span> Context-aware commands</li>
+          <li class="off"><span class="feat-check">–</span> AI Commands</li>
+          <li class="off"><span class="feat-check">–</span> Shared Stacks</li>
+        </ul>
+        <button class="btn-ghost" onclick="triggerCheckout('free')">Start Free</button>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan-card popular fade-in" style="transition-delay:.08s">
+        <div class="popular-badge">Most Popular</div>
+        <div>
+          <div class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-3">Pro</div>
+          <div class="flex items-end gap-1 mb-1">
+            <span class="text-4xl font-extrabold text-white" id="pro-price">$10</span>
+            <span class="text-[#64748B] text-sm mb-1">/mo</span>
+          </div>
+          <p class="text-xs text-[#64748B]" id="pro-billing">Billed monthly</p>
+        </div>
+        <ul class="feat-list flex flex-col gap-2.5">
+          <li><span class="feat-check">✓</span> Unlimited Commands</li>
+          <li><span class="feat-check">✓</span> Unlimited Stacks</li>
+          <li><span class="feat-check">✓</span> Advanced variables</li>
+          <li><span class="feat-check">✓</span> Full command palette</li>
+          <li><span class="feat-check">✓</span> Context-aware commands</li>
+          <li><span class="feat-check">✓</span> Favorites + Usage history</li>
+          <li><span class="feat-check">✓</span> Import / Export</li>
+          <li class="off"><span class="feat-check">–</span> AI Commands</li>
+        </ul>
+        <button class="btn-primary" onclick="triggerCheckout('pro')">Upgrade to Pro</button>
+      </div>
+
+      <!-- Pro+ AI -->
+      <div class="plan-card ai-plan fade-in" style="transition-delay:.16s">
+        <div class="popular-badge ai-badge">Best for power users</div>
+        <div>
+          <div class="text-xs font-bold text-violet-400 uppercase tracking-widest mb-3">Pro+ AI</div>
+          <div class="flex items-end gap-1 mb-1">
+            <span class="text-4xl font-extrabold text-white" id="ai-price">$20</span>
+            <span class="text-[#64748B] text-sm mb-1">/mo</span>
+          </div>
+          <p class="text-xs text-[#64748B]" id="ai-billing">Billed monthly</p>
+        </div>
+        <ul class="feat-list flex flex-col gap-2.5">
+          <li><span class="feat-check">✓</span> Everything in Pro</li>
+          <li><span class="feat-check">✓</span> AI Commands</li>
+          <li><span class="feat-check">✓</span> 500 AI credits / month</li>
+          <li><span class="feat-check">✓</span> Tone controls</li>
+          <li><span class="feat-check">✓</span> Prompt templates</li>
+          <li><span class="feat-check">✓</span> Context-aware generation</li>
+        </ul>
+        <button class="btn-primary btn-violet" onclick="triggerCheckout('ai')">Unlock AI</button>
+      </div>
+
+      <!-- Team -->
+      <div class="plan-card team-plan fade-in" style="transition-delay:.24s">
+        <div class="popular-badge team-badge">For teams</div>
+        <div>
+          <div class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-3">Team</div>
+          <div class="flex items-end gap-1 mb-1">
+            <span class="text-4xl font-extrabold text-white" id="team-price">$12</span>
+            <span class="text-[#64748B] text-sm mb-1">/user/mo</span>
+          </div>
+          <p class="text-xs text-[#64748B]" id="team-billing">Billed monthly</p>
+        </div>
+        <ul class="feat-list flex flex-col gap-2.5">
+          <li><span class="feat-check">✓</span> Everything in Pro</li>
+          <li><span class="feat-check">✓</span> Shared Stacks &amp; templates</li>
+          <li><span class="feat-check">✓</span> Admin controls</li>
+          <li><span class="feat-check">✓</span> Team analytics</li>
+          <li><span class="feat-check">✓</span> Centralized management</li>
+        </ul>
+        <div class="flex items-center gap-2 text-[#94A3B8]">
+          <label class="text-xs whitespace-nowrap">Seats</label>
+          <input type="number" id="team-seats" min="1" max="500" value="3" class="seats-input" />
+        </div>
+        <button class="btn-primary btn-green" onclick="triggerCheckout('team')">Start Team Plan</button>
+      </div>
+
+    </div>
+    <p class="text-center text-xs text-[#475569] mt-6">
+      🔒 Payments processed securely by Stripe · Cancel any time · Billing by AHPUSHIT LLC
+    </p>
+  </section>
+
+  <!-- ══ COMPARISON TABLE ══ -->
+  <section class="max-w-5xl mx-auto px-6 mb-24 fade-in">
+    <h2 class="text-2xl font-bold text-center text-white mb-10">Compare all features</h2>
+    <div class="overflow-x-auto rounded-2xl border border-[#1E293B]" style="background:#111827">
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th class="w-1/3">Feature</th>
+            <th class="text-[#64748B]">Free</th>
+            <th class="text-blue-400">Pro</th>
+            <th class="text-violet-400">Pro+ AI</th>
+            <th class="text-emerald-400">Team</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="section-row"><td colspan="5">Commands &amp; Stacks</td></tr>
+          <tr><td>Commands</td><td>25</td><td class="cmp-highlight">Unlimited</td><td class="cmp-highlight">Unlimited</td><td class="cmp-highlight">Unlimited</td></tr>
+          <tr><td>Stacks</td><td>3</td><td class="cmp-highlight">Unlimited</td><td class="cmp-highlight">Unlimited</td><td class="cmp-highlight">Unlimited</td></tr>
+          <tr><td>Shared Team Stacks</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td></tr>
+
+          <tr class="section-row"><td colspan="5">Triggers &amp; Variables</td></tr>
+          <tr><td>Slash triggers <code class="text-xs text-violet-400">/cmd</code></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td></tr>
+          <tr><td>Text expansion <code class="text-xs text-violet-400">;;cmd</code></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td></tr>
+          <tr><td>Advanced variables</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td></tr>
+          <tr><td>Context-aware commands</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td></tr>
+
+          <tr class="section-row"><td colspan="5">AI Commands</td></tr>
+          <tr><td>AI Commands</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td><td>Add-on</td></tr>
+          <tr><td>AI Credits / month</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td class="cmp-highlight">500</td><td>100</td></tr>
+          <tr><td>Tone controls &amp; prompt templates</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-dash">–</span></td></tr>
+
+          <tr class="section-row"><td colspan="5">Productivity</td></tr>
+          <tr><td>Favorites</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td></tr>
+          <tr><td>Usage history</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td></tr>
+          <tr><td>Import / Export</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td><td><span class="cmp-check">✓</span></td></tr>
+
+          <tr class="section-row"><td colspan="5">Team &amp; Admin</td></tr>
+          <tr><td>Shared Stacks &amp; templates</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td></tr>
+          <tr><td>Admin controls</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td></tr>
+          <tr><td>Team analytics</td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-dash">–</span></td><td><span class="cmp-check">✓</span></td></tr>
+
+          <tr class="section-row"><td colspan="5">Pricing</td></tr>
+          <tr>
+            <td>Price</td>
+            <td class="cmp-highlight">$0</td>
+            <td class="text-blue-400 font-semibold" id="cmp-pro-price">$10/mo</td>
+            <td class="text-violet-400 font-semibold" id="cmp-ai-price">$20/mo</td>
+            <td class="text-emerald-400 font-semibold" id="cmp-team-price">$12/user/mo</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ ADD-ON ══ -->
+  <section class="max-w-2xl mx-auto px-6 mb-24 fade-in">
+    <div class="rounded-2xl border border-[#1E293B] p-8 text-center" style="background:#111827">
+      <div class="text-2xl mb-3">⚡</div>
+      <h3 class="text-lg font-bold text-white mb-2">AI Credits Add-on</h3>
+      <p class="text-sm text-[#94A3B8] mb-6 max-w-sm mx-auto">Running low on AI credits? Top up any time with a one-time credit pack — no subscription needed.</p>
+      <div class="text-3xl font-extrabold text-white mb-1">$5 <span class="text-sm font-normal text-[#64748B]">one-time</span></div>
+      <p class="text-xs text-[#64748B] mb-6">Available for Pro+ AI and Team plans · Adds 100 credits</p>
+      <button onclick="triggerCheckout('credits')" class="btn-primary btn-violet px-8 inline-block" style="width:auto;display:inline-block">Buy AI Credits Pack</button>
+    </div>
+  </section>
+
+  <!-- ══ FAQ ══ -->
+  <section class="max-w-2xl mx-auto px-6 mb-24 fade-in" id="faq">
+    <h2 class="text-2xl font-bold text-white text-center mb-10">Frequently asked questions</h2>
+
+    <details>
+      <summary>What is a "Stack"?</summary>
+      <p>A Stack is a named group of Commands — like a folder for your most-used responses. For example, a "Support" stack with canned replies or a "Sales" stack with pitch snippets. Free users get 3 Stacks; Pro and above get unlimited.</p>
+    </details>
+
+    <details>
+      <summary>How do AI Commands work?</summary>
+      <p>AI Commands let you write a prompt template that's sent to GPT-4o mini (with Gemini as automatic fallback) and insert the result directly into any text field. Use <code class="text-violet-400 text-xs">{{inputText}}</code> to reference the active field content. No API keys needed — AI is fully managed.</p>
+    </details>
+
+    <details>
+      <summary>What happens to my data if I cancel?</summary>
+      <p>Your commands and stacks stay in your local browser storage. You'll drop back to Free plan limits (25 commands, 3 stacks) but nothing is deleted. Export your full library first from the Options page.</p>
+    </details>
+
+    <details>
+      <summary>Can I switch plans at any time?</summary>
+      <p>Yes. Upgrades take effect instantly and are prorated. Downgrades take effect at the end of your current billing period. Use the Manage Billing button in the Options page to change plans, update payment, or cancel.</p>
+    </details>
+
+    <details>
+      <summary>Is cannedIQ available on other browsers?</summary>
+      <p>cannedIQ is currently a Chrome extension (Manifest V3). Firefox and Edge support is on the roadmap. All your data is portable via the export feature.</p>
+    </details>
+
+    <details>
+      <summary>What does "AHPUSHIT LLC" mean on my statement?</summary>
+      <p>AHPUSHIT LLC is the legal entity behind cannedIQ. You may see <strong>AHPUSHIT LLC</strong> or <strong>CANNEDIQ*AHPUSHIT</strong> on your credit card statement. This is expected and completely normal.</p>
+    </details>
+
+    <details>
+      <summary>Do you offer refunds?</summary>
+      <p>If you're unhappy within 14 days of your first charge, email us and we'll refund it — no questions asked. After that, refunds are handled case-by-case.</p>
+    </details>
+  </section>
+
+  <!-- ══ FINAL CTA ══ -->
+  <section class="text-center px-6 py-20 border-t border-[#1E293B] fade-in">
+    <div class="logo-pill-lg mx-auto mb-6 inline-flex">
+      <img src="assets/cannediqlogo.png" height="36" alt="cannedIQ" />
+    </div>
+    <h2 class="text-3xl md:text-4xl font-extrabold text-white mb-4">
+      Your responses.<br><span class="grad">On command.</span>
+    </h2>
+    <p class="text-[#94A3B8] mb-8 max-w-md mx-auto text-base leading-relaxed">
+      Join thousands of support reps, sales pros, and power users who have stopped typing the same things twice.
+    </p>
+    <div class="flex flex-col sm:flex-row justify-center gap-4">
+      <button onclick="triggerCheckout('free')" class="px-8 py-3.5 rounded-xl border-2 border-[#1E293B] text-[#94A3B8] hover:border-blue-600 hover:text-white font-semibold transition-all text-sm">Start Free</button>
+      <button onclick="triggerCheckout('pro')"  class="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-all text-sm">Upgrade to Pro →</button>
+    </div>
+  </section>
+
+  <!-- ══ FOOTER ══ -->
+  <footer class="border-t border-[#1E293B] py-10 px-6">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="logo-pill"><img src="assets/IQicon.png" width="22" height="22" alt="cannedIQ icon" /></span>
+        <span class="text-sm font-bold text-white">canned<span class="text-blue-400">IQ</span></span>
+      </div>
+      <p class="text-xs text-[#475569] text-center">© 2026 cannedIQ · AHPUSHIT LLC · All rights reserved</p>
+      <div class="flex gap-5 text-xs text-[#475569]">
+        <a href="#" class="hover:text-[#94A3B8] transition-colors no-underline">Privacy</a>
+        <a href="#" class="hover:text-[#94A3B8] transition-colors no-underline">Terms</a>
+        <a href="mailto:hello@cannediq.com" class="hover:text-[#94A3B8] transition-colors no-underline">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ══ SCRIPT ══ -->
+  <script>
+    // ── Billing toggle ──────────────────────────────────────────────────────────
+    const PRICES = {
+      monthly: { pro:'$10', ai:'$20', team:'$12', proBilling:'Billed monthly', aiBilling:'Billed monthly', teamBilling:'Billed monthly', cmpPro:'$10/mo', cmpAi:'$20/mo', cmpTeam:'$12/user/mo' },
+      annual:  { pro:'$8',  ai:'$16', team:'$10', proBilling:'Billed annually ($96/yr)', aiBilling:'Billed annually ($192/yr)', teamBilling:'Billed annually ($120/user/yr)', cmpPro:'$8/mo', cmpAi:'$16/mo', cmpTeam:'$10/user/mo' },
+    };
+    let period = 'monthly';
+
+    function setPeriod(p) {
+      period = p;
+      const pr = PRICES[p];
+      document.getElementById('pro-price').textContent   = pr.pro;
+      document.getElementById('ai-price').textContent    = pr.ai;
+      document.getElementById('team-price').textContent  = pr.team;
+      document.getElementById('pro-billing').textContent = pr.proBilling;
+      document.getElementById('ai-billing').textContent  = pr.aiBilling;
+      document.getElementById('team-billing').textContent = pr.teamBilling;
+      document.getElementById('cmp-pro-price').textContent  = pr.cmpPro;
+      document.getElementById('cmp-ai-price').textContent   = pr.cmpAi;
+      document.getElementById('cmp-team-price').textContent = pr.cmpTeam;
+      document.getElementById('annual-note').classList.toggle('hidden', p === 'monthly');
+      document.querySelectorAll('#billing-toggle button').forEach(b =>
+        b.classList.toggle('active', b.dataset.period === p)
+      );
+    }
+
+    // ── Checkout ────────────────────────────────────────────────────────────────
+    function triggerCheckout(plan) {
+      if (plan === 'free') {
+        window.open('https://chrome.google.com/webstore/detail/cannediq', '_blank');
+        return;
+      }
+      if (plan === 'credits') {
+        // After Stripe setup, replace with your actual Payment Link
+        alert('AI Credits Pack: configure STRIPE_PRICE_AI_CREDITS Stripe Payment Link after setup.');
+        return;
+      }
+
+      const seats = (plan === 'team')
+        ? Math.max(1, parseInt(document.getElementById('team-seats')?.value || '3', 10))
+        : 1;
+
+      // Inside Chrome extension context
+      if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
+        chrome.runtime.sendMessage({ type: 'BILLING_CHECKOUT', plan, quantity: seats }, (res) => {
+          if (res?.url) window.open(res.url, '_blank');
+          else alert('Could not start checkout — open from the extension Options page for the best experience.');
+        });
+        return;
+      }
+
+      // Standalone web — use Stripe Payment Links (replace PLACEHOLDERs after Stripe setup)
+      const LINKS = {
+        pro:  'https://buy.stripe.com/PLACEHOLDER_pro',
+        ai:   'https://buy.stripe.com/PLACEHOLDER_ai',
+        team: `https://buy.stripe.com/PLACEHOLDER_team?quantity=${seats}`,
+      };
+      const url = LINKS[plan];
+      if (url && !url.includes('PLACEHOLDER')) window.open(url, '_blank');
+      else alert(`Checkout link for "${plan}" not yet configured. Set up Stripe products first.`);
+    }
+
+    // ── Scroll animations ───────────────────────────────────────────────────────
+    const obs = new IntersectionObserver(entries =>
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+  </script>
+</body>
+</html>

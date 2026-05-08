@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "cannedIQ — Command Launcher",
+  "version": "2.1.0",
+  "description": "Your responses. On command. Launch commands with slash triggers, text expansion, or Ctrl+Space.",
+  "permissions": [
+    "storage",
+    "identity",
+    "alarms",
+    "tabs",
+    "contextMenus",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.supabase.co/*"
+  ],
+  "commands": {
+    "open-palette": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Space",
+        "mac": "Command+Shift+Space"
+      },
+      "description": "Open CRL Command Palette"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "config.js",
+        "auth.js",
+        "api-client.js",
+        "core/storage.js",
+        "core/context.js",
+        "core/conditions.js",
+        "core/variables.js",
+        "core/history.js",
+        "core/gates.js",
+        "core/upgrade.js",
+        "core/executor.js",
+        "content.js"
+      ],
+      "css": ["overlay.css", "upgrade.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "action": {
+    "default_title": "CRL — Command Launcher",
+    "default_popup": ""
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
