@@ -14,8 +14,8 @@ CREATE EXTENSION IF NOT EXISTS moddatetime SCHEMA extensions;
 CREATE TABLE public.profiles (
   id                    UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email                 TEXT,
-  tier                  TEXT        NOT NULL DEFAULT 'free'   -- 'free' | 'pro' | 'team'
-                          CHECK (tier IN ('free', 'pro', 'team')),
+  tier                  TEXT        NOT NULL DEFAULT 'free'   -- 'free' | 'pro' | 'ai' | 'team'
+                          CHECK (tier IN ('free', 'pro', 'ai', 'team')),
   stripe_customer_id    TEXT        UNIQUE,
   stripe_subscription_id TEXT,
   ai_calls_this_month   INT         NOT NULL DEFAULT 0,
@@ -309,6 +309,7 @@ BEGIN
   v_limit := CASE v_tier
     WHEN 'free' THEN 0        -- no AI on free
     WHEN 'pro'  THEN 100
+    WHEN 'ai'   THEN 500
     WHEN 'team' THEN 500
     ELSE 0
   END;

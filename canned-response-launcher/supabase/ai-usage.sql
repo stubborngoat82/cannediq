@@ -5,8 +5,9 @@
 -- RPC that checks quota, auto-resets the counter monthly, then increments.
 --
 -- Quotas (requests per calendar month):
---   free  →  0  (blocked entirely)
---   pro   → 25
+--   free  →   0  (blocked entirely)
+--   pro   →  25
+--   ai    → 500  (Pro + AI plan)
 --   team  → 100  (shared pool per user seat, not per team)
 
 -- ── 1. Columns ────────────────────────────────────────────────────────────────
@@ -49,9 +50,10 @@ BEGIN
   -- Determine quota by tier
   CASE v_tier
     WHEN 'pro'  THEN v_quota := 25;
+    WHEN 'ai'   THEN v_quota := 500;
     WHEN 'team' THEN v_quota := 100;
     ELSE
-      RAISE EXCEPTION 'AI commands require a Pro or Team subscription.'
+      RAISE EXCEPTION 'AI commands require a Pro, AI, or Team subscription.'
         USING ERRCODE = 'P0001';
   END CASE;
 
@@ -96,6 +98,7 @@ SELECT
   ai_requests_this_month                                    AS used,
   CASE tier
     WHEN 'pro'  THEN 25
+    WHEN 'ai'   THEN 500
     WHEN 'team' THEN 100
     ELSE 0
   END                                                       AS quota,
