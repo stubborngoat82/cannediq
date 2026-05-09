@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Successful — CannedIQ</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f11;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #1a1a1f;
+      border: 1px solid #2a2a35;
+      border-radius: 20px;
+      padding: 56px 48px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .icon {
+      width: 72px;
+      height: 72px;
+      background: #16a34a22;
+      border: 2px solid #16a34a44;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+      font-size: 32px;
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .plan-badge {
+      display: inline-block;
+      background: #7c3aed22;
+      border: 1px solid #7c3aed44;
+      color: #a78bfa;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 14px;
+      border-radius: 99px;
+      margin-bottom: 32px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .plan-badge.pro   { background: #7c3aed22; border-color: #7c3aed44; color: #a78bfa; }
+    .plan-badge.ai    { background: #0ea5e922; border-color: #0ea5e944; color: #38bdf8; }
+    .plan-badge.team  { background: #16a34a22; border-color: #16a34a44; color: #4ade80; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #7c3aed;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 13px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #6d28d9; }
+
+    .btn-secondary {
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid #2a2a35;
+      margin-top: 12px;
+    }
+    .btn-secondary:hover { background: #1e1e26; color: #e2e8f0; }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .hint {
+      margin-top: 28px;
+      font-size: 13px;
+      color: #475569;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: #a78bfa;
+      margin-bottom: 40px;
+      letter-spacing: -0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">CannedIQ</div>
+    <div class="icon">✓</div>
+    <h1>You're all set!</h1>
+    <p class="subtitle" id="subtitle">
+      Your subscription is active. Switch back to the extension
+      to start using your new features.
+    </p>
+
+    <div class="plan-badge" id="plan-badge" style="display:none"></div>
+
+    <div class="actions">
+      <a id="btn-extension" class="btn" href="#" style="display:none">
+        ↩ Return to CannedIQ
+      </a>
+      <button id="btn-close" class="btn" onclick="window.close()">
+        Close this tab
+      </button>
+      <a id="btn-pricing" class="btn btn-secondary" href="/pricing">
+        View all plans
+      </a>
+    </div>
+
+    <p class="hint">
+      Your plan is active immediately. If the extension still shows
+      "Free", click the Billing tab — it refreshes automatically.
+    </p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const plan   = params.get('plan') || '';
+    const extId  = params.get('ext') || '';   // optional: pass &ext=EXTENSION_ID from checkout
+
+    // Plan badge
+    const PLAN_LABELS = { pro: 'Pro', ai: 'Pro + AI', team: 'Team' };
+    if (plan && PLAN_LABELS[plan]) {
+      const badge = document.getElementById('plan-badge');
+      badge.textContent = PLAN_LABELS[plan] + ' — Active';
+      badge.className   = 'plan-badge ' + plan;
+      badge.style.display = 'inline-block';
+    }
+
+    // If we know the extension ID (from env var embedded at build time, or passed
+    // as a query param), show a direct "Return to extension" link.
+    //
+    // To pass the ext ID automatically, update billing-checkout/index.ts to append
+    // &ext=CHROME_EXTENSION_ID to the success_url.
+    const resolvedExtId = extId || (typeof CHROME_EXTENSION_ID !== 'undefined' ? CHROME_EXTENSION_ID : '');
+    if (resolvedExtId) {
+      const btn = document.getElementById('btn-extension');
+      btn.href = `chrome-extension://${resolvedExtId}/options.html?tab=billing`;
+      btn.style.display = 'inline-flex';
+      // Hide the generic "Close" button if we have a real target
+      document.getElementById('btn-close').style.display = 'none';
+    }
+
+    // Auto-close after 8 seconds if no interaction
+    let autoCloseTimer = setTimeout(() => {
+      if (resolvedExtId) {
+        window.location.href = `chrome-extension://${resolvedExtId}/options.html?tab=billing`;
+      } else {
+        window.close();
+      }
+    }, 8000);
+
+    document.querySelectorAll('.btn').forEach((b) =>
+      b.addEventListener('click', () => clearTimeout(autoCloseTimer))
+    );
+  </script>
+</body>
+</html>
