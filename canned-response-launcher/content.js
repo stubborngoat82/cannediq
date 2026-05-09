@@ -16,6 +16,18 @@
 
 (() => {
 
+  // ─── Built-in commands ───────────────────────────────────────────────────────
+
+  const AI_REPLY_CMD = {
+    id:          '__ai_reply__',
+    name:        'AI Reply',
+    description: 'Generate a reply based on selected text',
+    commandType: 'ai_reply',
+    triggers:    [{ type: 'slash', value: '/ai-reply' }],
+    favorite:    false,
+    usageCount:  0,
+  };
+
   // ─── State ───────────────────────────────────────────────────────────────────
 
   let activeField  = null;  // last focused editable element
@@ -110,6 +122,12 @@
       cursorPos  = textBefore.length;
     }
 
+    // Built-in: /ai-reply
+    if (textBefore.endsWith('/ai-reply')) {
+      const start = cursorPos - '/ai-reply'.length;
+      return { cmd: AI_REPLY_CMD, start, end: cursorPos, triggerType: 'slash', builtin: true };
+    }
+
     for (const cmd of cachedCommands) {
       for (const trigger of (cmd.triggers || [])) {
         if (!trigger.value) continue;
@@ -134,6 +152,20 @@
   }
 
   async function launchFromTrigger({ cmd, start, end, triggerType }) {
+    // ── Built-in: AI Reply ───────────────────────────────────────────────────────
+    if (cmd.commandType === 'ai_reply') {
+      // Remove the trigger text
+      if (activeField && (activeField.tagName === 'TEXTAREA' || activeField.tagName === 'INPUT')) {
+        if (typeof activeField.setRangeText === 'function') {
+          activeField.setRangeText('', start, end, 'start');
+        }
+        savedCursor = { start, end: start };
+      }
+      await CRLAIReply.launch(activeField, savedCursor);
+      savedCursor = null;
+      return;
+    }
+
     // ── Gate: AI commands ────────────────────────────────────────────────────────
     if (cmd.commandType === 'ai') {
       const user = await CRLGates.getUser();
@@ -338,7 +370,7 @@
 
   // ─── Command palette: render items ───────────────────────────────────────────
 
-  const TYPE_LABEL = { static: 'static', variable: 'var', contextAware: 'ctx', ai: 'ai', workflow: 'flow' };
+  const TYPE_LABEL = { static: 'static', variable: 'var', contextAware: 'ctx', ai: 'ai', ai_reply: 'ai', workflow: 'flow' };
 
   function renderItems() {
     const list = palette.querySelector('.crl-palette-list');
@@ -346,17 +378,25 @@
     paletteItems = [];
     focusedIdx   = -1;
 
-    let cmds = cachedCommands.filter((cmd) => {
-      if (activeStack !== 'all' && cmd.stackId !== activeStack) return false;
-      if (!searchQuery) return true;
-      const q = searchQuery;
-      return (
-        cmd.name.toLowerCase().includes(q) ||
-        (cmd.description || '').toLowerCase().includes(q) ||
-        (cmd.triggers || []).some((t) => (t.value || '').toLowerCase().includes(q)) ||
-        (cmd.template   || '').toLowerCase().includes(q)
-      );
-    });
+    // Always include AI Reply as the first built-in entry (if it matches the search)
+    const q = searchQuery;
+    const builtins = (!q || 'ai reply'.includes(q) || '/ai-reply'.includes(q))
+      ? [AI_REPLY_CMD]
+      : [];
+
+    let cmds = [
+      ...builtins,
+      ...cachedCommands.filter((cmd) => {
+        if (activeStack !== 'all' && cmd.stackId !== activeStack) return false;
+        if (!q) return true;
+        return (
+          cmd.name.toLowerCase().includes(q) ||
+          (cmd.description || '').toLowerCase().includes(q) ||
+          (cmd.triggers || []).some((t) => (t.value || '').toLowerCase().includes(q)) ||
+          (cmd.template   || '').toLowerCase().includes(q)
+        );
+      }),
+    ];
 
     // Sort: favorites → usage count
     cmds.sort((a, b) => {
@@ -469,6 +509,13 @@
     const { cmd } = paletteItems[focusedIdx];
     closePalette();
 
+    // ── Built-in: AI Reply ───────────────────────────────────────────────────────
+    if (cmd.commandType === 'ai_reply') {
+      await CRLAIReply.launch(activeField, savedCursor);
+      savedCursor = null;
+      return;
+    }
+
     // ── Gate checks before execution ─────────────────────────────────────────────
     const user = await CRLGates.getUser();
 
@@ -506,6 +553,12 @@
 
     if (msg.type === 'OPEN_PALETTE') {
       if (palette) closePalette(); else openPalette();
+      sendResponse({ ok: true });
+      return true;
+    }
+
+    if (msg.type === 'OPEN_AI_REPLY') {
+      CRLAIReply.launch(activeField, savedCursor);
       sendResponse({ ok: true });
       return true;
     }

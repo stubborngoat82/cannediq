@@ -22,6 +22,13 @@
         "mac": "Command+Shift+Space"
       },
       "description": "Open CRL Command Palette"
+    },
+    "open-ai-reply": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R",
+        "mac": "Command+Shift+R"
+      },
+      "description": "Open AI Reply"
     }
   },
   "content_scripts": [
@@ -39,6 +46,7 @@
         "core/gates.js",
         "core/upgrade.js",
         "core/executor.js",
+        "core/ai-reply.js",
         "content.js"
       ],
       "css": ["overlay.css", "upgrade.css"]

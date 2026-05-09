@@ -74,12 +74,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // ── 4. Keyboard shortcut → forward to active tab ──────────────────────────────
 
 chrome.commands.onCommand.addListener(async (command) => {
-  if (command !== 'open-palette') return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab) return;
   try {
-    await chrome.tabs.sendMessage(tab.id, { type: 'OPEN_PALETTE' });
-  } catch (err) { console.warn('[CRL] Could not open palette:', err.message); }
+    if (command === 'open-palette') {
+      await chrome.tabs.sendMessage(tab.id, { type: 'OPEN_PALETTE' });
+    } else if (command === 'open-ai-reply') {
+      await chrome.tabs.sendMessage(tab.id, { type: 'OPEN_AI_REPLY' });
+    }
+  } catch (err) { console.warn('[CRL] Could not forward command:', err.message); }
 });
 
 // ── 5. Message bus ────────────────────────────────────────────────────────────
