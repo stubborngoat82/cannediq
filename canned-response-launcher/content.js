@@ -67,8 +67,13 @@
 
   async function handleKeyDown(e) {
 
-    // Ctrl+Space → toggle palette
-    if (e.ctrlKey && e.code === 'Space') {
+    // Ctrl+Space (Win/Linux) or Cmd+Shift+Space (Mac) → toggle palette
+    // Also accept Ctrl+Shift+Space as a universal fallback.
+    const isOpenPalette =
+      (e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'Space') ||   // Ctrl+Space
+      (e.ctrlKey && !e.metaKey &&  e.shiftKey && e.code === 'Space') ||   // Ctrl+Shift+Space
+      (e.metaKey && !e.ctrlKey &&  e.shiftKey && e.code === 'Space');      // Cmd+Shift+Space (Mac)
+    if (isOpenPalette) {
       e.preventDefault();
       e.stopPropagation();
       if (palette) closePalette();

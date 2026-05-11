@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "cannedIQ — Command Launcher",
   "version": "2.1.0",
-  "description": "Your responses. On command. Launch commands with slash triggers, text expansion, or Ctrl+Space.",
+  "description": "Your responses. On command. Launch commands with slash triggers, text expansion, or Ctrl+Space (Win) / Cmd+Shift+Space (Mac).",
   "permissions": [
     "storage",
     "identity",
@@ -18,7 +18,7 @@
   "commands": {
     "open-palette": {
       "suggested_key": {
-        "default": "Ctrl+Shift+Space",
+        "default": "Ctrl+Space",
         "mac": "Command+Shift+Space"
       },
       "description": "Open CRL Command Palette"
