@@ -12,6 +12,41 @@
 
 importScripts('config.js', 'auth.js', 'core/storage.js', 'core/gates.js');
 
+// ── Content-script injection helper ──────────────────────────────────────────
+//
+// Sends a message to a tab's content script. If the content script isn't
+// running (page was open before install, or extension was reloaded), injects
+// all scripts + CSS on demand and retries once. Silently ignores restricted
+// pages (chrome://, PDFs, etc.) where injection is not allowed.
+
+const CONTENT_SCRIPTS = [
+  'config.js', 'auth.js', 'api-client.js',
+  'core/storage.js', 'core/context.js', 'core/conditions.js',
+  'core/variables.js', 'core/history.js', 'core/gates.js',
+  'core/upgrade.js', 'core/executor.js', 'core/ai-reply.js',
+  'content.js',
+];
+const CONTENT_CSS = ['overlay.css', 'upgrade.css'];
+
+async function sendToTab(tabId, message) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, message);
+  } catch (err) {
+    if (!err.message?.includes('Could not establish connection')) throw err;
+
+    // Content script not present — try injecting it now
+    try {
+      await chrome.scripting.insertCSS({ target: { tabId }, files: CONTENT_CSS });
+      await chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_SCRIPTS });
+      // Give scripts a moment to initialise
+      await new Promise((r) => setTimeout(r, 150));
+      return await chrome.tabs.sendMessage(tabId, message);
+    } catch {
+      // Restricted page (chrome://, PDF, etc.) — nothing we can do
+    }
+  }
+}
+
 // ── 1. Install / update ───────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -66,9 +101,7 @@ async function rebuildContextMenus() {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!info.menuItemId.startsWith('crl-cmd-')) return;
   const commandId = info.menuItemId.replace('crl-cmd-', '');
-  try {
-    await chrome.tabs.sendMessage(tab.id, { type: 'CONTEXT_MENU_COMMAND', commandId });
-  } catch (err) { console.warn('[CRL] Context menu message failed:', err.message); }
+  await sendToTab(tab.id, { type: 'CONTEXT_MENU_COMMAND', commandId });
 });
 
 // ── 4. Keyboard shortcut → forward to active tab ──────────────────────────────
@@ -76,13 +109,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 chrome.commands.onCommand.addListener(async (command) => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab) return;
-  try {
-    if (command === 'open-palette') {
-      await chrome.tabs.sendMessage(tab.id, { type: 'OPEN_PALETTE' });
-    } else if (command === 'open-ai-reply') {
-      await chrome.tabs.sendMessage(tab.id, { type: 'OPEN_AI_REPLY' });
-    }
-  } catch (err) { console.warn('[CRL] Could not forward command:', err.message); }
+  if (command === 'open-palette')  await sendToTab(tab.id, { type: 'OPEN_PALETTE' });
+  if (command === 'open-ai-reply') await sendToTab(tab.id, { type: 'OPEN_AI_REPLY' });
 });
 
 // ── 5. Message bus ────────────────────────────────────────────────────────────
