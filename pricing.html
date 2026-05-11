@@ -410,41 +410,220 @@
       );
     }
 
+    // ── Supabase config ─────────────────────────────────────────────────────────
+    const SUPA_URL  = 'https://kihuepwhrftjgmglnxnc.supabase.co';
+    const SUPA_ANON = 'sb_publishable_j7PL9l3pZCmnPEsLUI10eQ_xYQQyJbW';
+
     // ── Checkout ────────────────────────────────────────────────────────────────
     function triggerCheckout(plan) {
       if (plan === 'free') {
         window.open('https://chrome.google.com/webstore/detail/cannediq', '_blank');
         return;
       }
-      if (plan === 'credits') {
-        // After Stripe setup, replace with your actual Payment Link
-        alert('AI Credits Pack: configure STRIPE_PRICE_AI_CREDITS Stripe Payment Link after setup.');
-        return;
-      }
+      if (plan === 'credits') return; // no credits plan on web yet
 
       const seats = (plan === 'team')
         ? Math.max(1, parseInt(document.getElementById('team-seats')?.value || '3', 10))
         : 1;
 
-      // Inside Chrome extension context
+      // Inside Chrome extension — proxy through background worker
       if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
         chrome.runtime.sendMessage({ type: 'BILLING_CHECKOUT', plan, quantity: seats }, (res) => {
-          if (res?.url) window.open(res.url, '_blank');
-          else alert('Could not start checkout — open from the extension Options page for the best experience.');
+          if (res?.url) window.location.href = res.url;
+          else showAuthModal(plan, seats);
         });
         return;
       }
 
-      // Standalone web — use Stripe Payment Links (replace PLACEHOLDERs after Stripe setup)
-      const LINKS = {
-        pro:  'https://buy.stripe.com/PLACEHOLDER_pro',
-        ai:   'https://buy.stripe.com/PLACEHOLDER_ai',
-        team: `https://buy.stripe.com/PLACEHOLDER_team?quantity=${seats}`,
-      };
-      const url = LINKS[plan];
-      if (url && !url.includes('PLACEHOLDER')) window.open(url, '_blank');
-      else alert(`Checkout link for "${plan}" not yet configured. Set up Stripe products first.`);
+      // Standalone web — call billing-checkout edge function directly
+      startWebCheckout(plan, seats);
     }
+
+    async function startWebCheckout(plan, seats) {
+      const token = getSupabaseToken();
+      if (!token) {
+        // Not signed in — collect email, send magic link, store intent
+        sessionStorage.setItem('ciq_checkout_intent', JSON.stringify({ plan, seats }));
+        showAuthModal(plan, seats);
+        return;
+      }
+      await callCheckoutEndpoint(token, plan, seats);
+    }
+
+    async function callCheckoutEndpoint(token, plan, seats) {
+      const btn = document.querySelector(`[onclick*="'${plan}'"]`);
+      const original = btn?.textContent;
+      if (btn) { btn.textContent = 'Loading…'; btn.disabled = true; }
+
+      try {
+        const res = await fetch(`${SUPA_URL}/functions/v1/billing-checkout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ plan, quantity: seats }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert(data.error || 'Could not start checkout. Please try again.');
+          if (btn) { btn.textContent = original; btn.disabled = false; }
+        }
+      } catch (err) {
+        alert('Network error — please try again.');
+        if (btn) { btn.textContent = original; btn.disabled = false; }
+      }
+    }
+
+    function getSupabaseToken() {
+      // Supabase v2 stores session in localStorage as sb-<ref>-auth-token
+      try {
+        const key = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (!key) return null;
+        const session = JSON.parse(localStorage.getItem(key) || '{}');
+        const token = session?.access_token;
+        if (!token) return null;
+        // Check expiry
+        const exp = session?.expires_at ?? 0;
+        if (exp && Date.now() / 1000 > exp) return null;
+        return token;
+      } catch { return null; }
+    }
+
+    // ── Sign-in modal ───────────────────────────────────────────────────────────
+    function showAuthModal(plan, seats) {
+      document.getElementById('ciq-auth-modal')?.remove();
+
+      const backdrop = document.createElement('div');
+      backdrop.id = 'ciq-auth-modal';
+      Object.assign(backdrop.style, {
+        position: 'fixed', inset: '0', zIndex: '9999',
+        background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
+      });
+
+      backdrop.innerHTML = `
+        <div style="background:#111827;border:1px solid #1e293b;border-radius:16px;padding:32px;width:100%;max-width:400px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e2e8f0;">
+          <div style="margin-bottom:20px;">
+            <div style="font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px;">Sign in to continue</div>
+            <div style="font-size:14px;color:#94a3b8;">We'll email you a magic link — no password needed.</div>
+          </div>
+          <input id="ciq-auth-email" type="email" placeholder="you@example.com" autocomplete="email"
+            style="width:100%;padding:12px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;
+                   color:#f1f5f9;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;" />
+          <div id="ciq-auth-msg" style="font-size:13px;color:#94a3b8;min-height:20px;margin-bottom:12px;"></div>
+          <div style="display:flex;gap:10px;">
+            <button id="ciq-auth-cancel"
+              style="flex:1;padding:11px;border:1px solid #334155;border-radius:10px;background:transparent;
+                     color:#94a3b8;font-size:14px;font-weight:600;cursor:pointer;">
+              Cancel
+            </button>
+            <button id="ciq-auth-submit"
+              style="flex:2;padding:11px;border:none;border-radius:10px;background:#7c3aed;
+                     color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+              Send Magic Link
+            </button>
+          </div>
+        </div>`;
+
+      document.body.appendChild(backdrop);
+
+      const emailEl  = document.getElementById('ciq-auth-email');
+      const msgEl    = document.getElementById('ciq-auth-msg');
+      const submitEl = document.getElementById('ciq-auth-submit');
+      const cancelEl = document.getElementById('ciq-auth-cancel');
+
+      emailEl.focus();
+
+      backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+      cancelEl.addEventListener('click', () => backdrop.remove());
+
+      async function sendLink() {
+        const email = emailEl.value.trim();
+        if (!email || !email.includes('@')) {
+          msgEl.style.color = '#f87171';
+          msgEl.textContent = 'Please enter a valid email address.';
+          return;
+        }
+
+        submitEl.textContent = 'Sending…';
+        submitEl.disabled = true;
+        msgEl.style.color = '#94a3b8';
+        msgEl.textContent = '';
+
+        // Store checkout intent so we can resume after the magic link is clicked
+        sessionStorage.setItem('ciq_checkout_intent', JSON.stringify({ plan, seats }));
+
+        try {
+          const res = await fetch(`${SUPA_URL}/auth/v1/otp`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPA_ANON,
+            },
+            body: JSON.stringify({
+              email,
+              options: { emailRedirectTo: window.location.href },
+            }),
+          });
+
+          if (res.ok || res.status === 200) {
+            msgEl.style.color = '#34d399';
+            msgEl.textContent = '✓ Magic link sent! Check your inbox.';
+            submitEl.textContent = 'Sent ✓';
+          } else {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error_description || err.msg || 'Failed to send link.');
+          }
+        } catch (err) {
+          msgEl.style.color = '#f87171';
+          msgEl.textContent = err.message || 'Something went wrong — try again.';
+          submitEl.textContent = 'Send Magic Link';
+          submitEl.disabled = false;
+        }
+      }
+
+      submitEl.addEventListener('click', sendLink);
+      emailEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendLink(); });
+    }
+
+    // ── Resume checkout after magic-link auth ───────────────────────────────────
+    // Supabase appends #access_token=... to the redirect URL after OTP sign-in.
+    // Parse it, exchange for a session, then auto-trigger the stored checkout intent.
+    (async function resumeAfterAuth() {
+      const hash = window.location.hash;
+      if (!hash.includes('access_token=')) return;
+
+      const params  = new URLSearchParams(hash.slice(1));
+      const token   = params.get('access_token');
+      const refresh = params.get('refresh_token');
+      if (!token) return;
+
+      // Persist session to localStorage in Supabase v2 format
+      try {
+        const payload  = JSON.parse(atob(token.split('.')[1]));
+        const storeKey = `sb-${new URL(SUPA_URL).hostname.split('.')[0]}-auth-token`;
+        localStorage.setItem(storeKey, JSON.stringify({
+          access_token:  token,
+          refresh_token: refresh,
+          expires_at:    payload.exp,
+          user:          { id: payload.sub, email: payload.email },
+        }));
+      } catch {}
+
+      // Clean the URL
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+
+      // Resume any pending checkout
+      const intent = sessionStorage.getItem('ciq_checkout_intent');
+      if (intent) {
+        sessionStorage.removeItem('ciq_checkout_intent');
+        const { plan, seats } = JSON.parse(intent);
+        await callCheckoutEndpoint(token, plan, seats);
+      }
+    })();
 
     // ── Scroll animations ───────────────────────────────────────────────────────
     const obs = new IntersectionObserver(entries =>
