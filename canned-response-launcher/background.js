@@ -285,21 +285,24 @@ async function refreshUserPlan() {
   if (!row) return null;
 
   const planData = {
-    plan:                row.plan,
+    plan:                row.plan ?? 'free',
     signedIn:            true,
     subscriptionStatus:  row.subscription_status,
     currentPeriodEnd:    row.current_period_end,
     cancelAtPeriodEnd:   row.cancel_at_period_end,
-    aiCreditsRemaining:  row.ai_credits_remaining,
-    maxCommands:         row.max_commands,
-    maxStacks:           row.max_stacks,
+    aiCreditsRemaining:  row.ai_credits_remaining ?? 0,
+    // NULL from the view means unlimited — map to Infinity for gates.js
+    maxCommands:         row.max_commands  ?? Infinity,
+    maxStacks:           row.max_stacks    ?? Infinity,
   };
 
   chrome.storage.local.set({ crl_user_plan: planData });
+  // Invalidate the in-memory cache in gates.js (runs in content scripts —
+  // they each have their own copy, cleared on next getUser() call via storage)
   return planData;
 }
 
-// Refresh plan on startup and when auth state changes
+// Refresh plan on startup, every 30 min, and right after billing events
 chrome.runtime.onInstalled.addListener(() => refreshUserPlan());
 chrome.alarms.create('planRefresh', { periodInMinutes: 30 });
 chrome.alarms.onAlarm.addListener((alarm) => {

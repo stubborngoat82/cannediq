@@ -15,6 +15,9 @@
   "host_permissions": [
     "https://*.supabase.co/*"
   ],
+  "externally_connectable": {
+    "matches": ["https://cannediq.com/*", "https://www.cannediq.com/*"]
+  },
   "commands": {
     "open-palette": {
       "suggested_key": {

@@ -178,6 +178,14 @@
       document.getElementById('btn-close').style.display = 'none';
     }
 
+    // Immediately tell the extension to refresh its cached plan so the user
+    // doesn't see the "upgrade" CTA when they return to the options page.
+    if (resolvedExtId) {
+      try {
+        chrome.runtime.sendMessage(resolvedExtId, { type: 'REFRESH_PLAN' });
+      } catch {}
+    }
+
     // Auto-close after 8 seconds if no interaction
     let autoCloseTimer = setTimeout(() => {
       if (resolvedExtId) {
