@@ -22,7 +22,9 @@
 -- replace it with a stored generated column that always equals tier.
 -- Every existing and future row will automatically have plan = tier.
 
-ALTER TABLE public.profiles DROP COLUMN IF EXISTS plan;
+-- Drop the old column and anything that depended on it
+-- (trg_sync_plan_to_tier trigger + any old user_plan view)
+ALTER TABLE public.profiles DROP COLUMN IF EXISTS plan CASCADE;
 
 ALTER TABLE public.profiles
   ADD COLUMN plan TEXT GENERATED ALWAYS AS (tier) STORED;
