@@ -16,6 +16,49 @@
 
 (() => {
 
+  // ─── Extension context guard ──────────────────────────────────────────────────
+  // When the extension reloads or the MV3 service worker restarts, existing
+  // content scripts become "orphaned" — chrome.* APIs throw
+  // "Extension context invalidated". We detect this early and shut down cleanly
+  // rather than spamming the console with unhandled promise rejections.
+
+  let _contextDead = false;
+
+  function isContextAlive() {
+    if (_contextDead) return false;
+    try {
+      // chrome.runtime.id becomes undefined when the context is invalidated.
+      if (!chrome?.runtime?.id) { _contextDead = true; return false; }
+      return true;
+    } catch {
+      _contextDead = true;
+      return false;
+    }
+  }
+
+  // Poll every 10 s; the moment the context dies, show a one-time toast.
+  const _ctxPoller = setInterval(() => {
+    if (!isContextAlive()) {
+      clearInterval(_ctxPoller);
+      _showReloadToast();
+    }
+  }, 10_000);
+
+  function _showReloadToast() {
+    try {
+      const t = document.createElement('div');
+      t.setAttribute('style', [
+        'position:fixed;bottom:20px;right:20px;z-index:2147483647',
+        'background:#1a1a1f;color:#e2e8f0;border:1px solid #3a3a4a',
+        'border-radius:10px;padding:12px 18px;font:14px/1.5 system-ui,sans-serif',
+        'box-shadow:0 4px 20px #0008;max-width:320px',
+      ].join(';'));
+      t.textContent = '⚡ CannedIQ was updated — refresh this tab to re-activate it.';
+      document.body?.appendChild(t);
+      setTimeout(() => t.remove(), 8000);
+    } catch {}
+  }
+
   // ─── Built-in commands ───────────────────────────────────────────────────────
 
   const AI_REPLY_CMD = {
@@ -42,6 +85,21 @@
   let cachedCommands = [];
   let cachedStacks   = [];
 
+  // ─── Selection snapshot ────────────────────────────────────────────────────
+  // Clicking into a text field clears window.getSelection(). We track the last
+  // non-empty selection so {{selectedText}} works even after the user has typed
+  // their slash trigger in the reply field.
+
+  let lastPageSelection = '';
+
+  document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection()?.toString() ?? '';
+    if (sel.trim()) lastPageSelection = sel;
+  });
+
+  // Expose it so CRLContext.gather() can pick it up as a fallback.
+  window.__crlLastPageSelection = () => lastPageSelection;
+
   // ─── Field tracking ──────────────────────────────────────────────────────────
 
   function isEditable(el) {
@@ -66,6 +124,7 @@
   document.addEventListener('keydown', handleKeyDown, true);
 
   async function handleKeyDown(e) {
+    if (!isContextAlive()) return;
 
     // Ctrl+Space (Win/Linux) or Cmd+Shift+Space (Mac) → toggle palette
     // Also accept Ctrl+Shift+Space as a universal fallback.
@@ -206,6 +265,7 @@
     });
 
     savedCursor = null;
+    lastPageSelection = ''; // Clear after use so it doesn't bleed into future commands
 
     // ── Heavy-use nudge (after successful launch) ─────────────────────────────────
     const user = await CRLGates.getUser();

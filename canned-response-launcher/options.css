@@ -613,6 +613,47 @@ kbd {
   border-top: 1px solid #f3f4f6;
 }
 
+/* ── Seat usage bar ──────────────────────────────────────────────── */
+.team-seat-usage {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.seat-usage-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: #374151;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.seat-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4f46e5;
+  background: #ede9fe;
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+.seat-badge--full {
+  color: #dc2626;
+  background: #fee2e2;
+}
+.seat-bar-track {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.seat-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
 .team-members-title {
   font-size: 12px;
   font-weight: 700;
@@ -622,19 +663,78 @@ kbd {
   margin-bottom: 8px;
 }
 
-.member-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.member-table-header {
+  display: grid;
+  grid-template-columns: 1fr 100px 100px 120px;
+  gap: 8px;
+  padding: 0 4px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #9ca3af;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 6px;
+}
+
+.member-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
 
 .member-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   font-size: 13px;
   color: #374151;
+  padding: 4px;
+  border-radius: 6px;
+}
+.member-item:hover { background: #f9fafb; }
+
+/* Table-style row (provisioning redesign) */
+.member-item--row {
+  display: grid;
+  grid-template-columns: 1fr 100px 100px 120px;
+  align-items: center;
+  gap: 8px;
 }
 
-.member-email { flex: 1; }
-.member-role  { font-size: 11px; color: #9ca3af; text-transform: uppercase; }
+.member-email       { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-last-active { font-size: 12px; color: #9ca3af; }
+.member-role        { font-size: 11px; color: #9ca3af; text-transform: uppercase; }
+.member-actions     { display: flex; gap: 4px; justify-content: flex-end; }
+
+/* Status badges */
+.member-status {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.member-status--active  { background: #dcfce7; color: #166534; }
+.member-status--pending { background: #fef3c7; color: #92400e; }
+.member-status--never   { background: #f3f4f6; color: #6b7280; }
+
+/* Add member form */
+.provision-form {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.provision-form input {
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.provision-form input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.15); }
+
+/* Extra-small button variant */
+.btn-xs { padding: 3px 8px; font-size: 11px; }
 
 .invite-row {
   display: flex;
@@ -1239,6 +1339,102 @@ kbd {
   flex-direction: column;
   gap: 0;
   padding: 0;
+}
+
+/* ── Onboarding modal ── */
+
+/* ── Personal / Professional toggle ── */
+.ob-type-toggle {
+  display: flex;
+  gap: 8px;
+  padding: 14px 28px 0;
+}
+.ob-type-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  text-align: center;
+}
+.ob-type-btn:hover { border-color: #a5b4fc; color: #4f46e5; }
+.ob-type-btn--active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 700;
+}
+
+/* Pro-only fields — collapsed when personal mode */
+.ob-pro-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+.ob-pro-fields--hidden { display: none; }
+
+.ob-optional {
+  font-weight: 400;
+  color: #9ca3af;
+  font-size: 11.5px;
+}
+
+.onboarding-header {
+  padding: 28px 28px 0;
+}
+.onboarding-logo {
+  font-size: 17px;
+  font-weight: 800;
+  color: #4f46e5;
+  margin-bottom: 14px;
+}
+.onboarding-sub {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+.onboarding-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 20px 28px;
+}
+.onboarding-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+.onboarding-grid input,
+.onboarding-grid select {
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+.onboarding-grid input:focus,
+.onboarding-grid select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99,102,241,.15);
+}
+#modal-onboarding .modal-footer {
+  padding: 0 28px 24px;
+  border-top: none;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .modal-header {

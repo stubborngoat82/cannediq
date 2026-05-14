@@ -23,6 +23,13 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_ROLE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+// Accept either DB_ANON_KEY or SUPABASE_ANON_KEY — set whichever you have
+const ANON_KEY          =
+  Deno.env.get('DB_ANON_KEY') ??
+  Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
 Deno.serve(async (req: Request) => {
   const url   = new URL(req.url);
   const token = url.searchParams.get('token');
@@ -31,13 +38,22 @@ Deno.serve(async (req: Request) => {
     return htmlResponse(errorPage('No invite token provided.', ''), 400);
   }
 
-  // Look up invite server-side (safe: service role, no RLS)
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
+  if (!ANON_KEY) {
+    console.error('[accept-team-invite] DB_ANON_KEY / SUPABASE_ANON_KEY secret is not set.');
+    return htmlResponse(
+      errorPage('Server configuration error.', 'The server is missing a required key. Contact the team owner.'),
+      500
+    );
+  }
 
-  const { data: preview } = await supabase.rpc('get_invite_preview', { p_token: token });
+  // Look up invite server-side (safe: service role, no RLS)
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+  const { data: preview, error: rpcErr } = await supabase.rpc('get_invite_preview', { p_token: token });
+  if (rpcErr) {
+    console.error('[accept-team-invite] get_invite_preview error:', rpcErr.message);
+    return htmlResponse(errorPage('Invite lookup failed.', 'Please try the link again or ask for a new invite.'), 500);
+  }
 
   if (!preview?.found) {
     return htmlResponse(errorPage('Invite not found.', 'This link may have already been used or was never valid.'), 404);
@@ -49,11 +65,9 @@ Deno.serve(async (req: Request) => {
     return htmlResponse(errorPage('Invite expired or revoked.', 'Ask your team owner to send a new invite.'), 200);
   }
 
-  const teamName  = preview.team_name ?? 'your team';
-  const anonKey   = Deno.env.get('DB_ANON_KEY') ?? '';
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const teamName = preview.team_name ?? 'your team';
 
-  return htmlResponse(acceptPage(teamName, token, supabaseUrl, anonKey), 200);
+  return htmlResponse(acceptPage(teamName, token, SUPABASE_URL, ANON_KEY), 200);
 });
 
 // ── HTML page builder ─────────────────────────────────────────────
@@ -225,15 +239,23 @@ function acceptPage(teamName: string, token: string, supabaseUrl: string, anonKe
     try {
       let result;
       if (mode === 'signup') {
-        result = await sb.auth.signUp({ email, password });
+        // Pass the current URL as the redirect target so that the Supabase
+        // email-confirmation link brings the user back HERE (with ?token=…)
+        // rather than to the generic SITE_URL. The onAuthStateChange handler
+        // then picks up the session and calls acceptInvite automatically.
+        result = await sb.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.href },
+        });
       } else {
         result = await sb.auth.signInWithPassword({ email, password });
       }
       if (result.error) throw result.error;
       const session = result.data?.session;
       if (!session) {
-        // Email confirmation required for signup
-        showError('Check your inbox - we sent you a confirmation link. Click it, then come back to this page.');
+        // Email confirmation required — confirmation link will redirect back here
+        showError('Almost there! Check your inbox for a confirmation email. Click the link in it and you\'ll be joined automatically.');
         setLoading(false);
         return;
       }

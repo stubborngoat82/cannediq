@@ -20,7 +20,17 @@ const CRLContext = (() => {
     try { ctx.currentUrl = window.location.href; }    catch {}
     try { ctx.hostname   = window.location.hostname; } catch {}
     try { ctx.pageTitle  = document.title; }           catch {}
-    try { ctx.selectedText = window.getSelection()?.toString() ?? ''; } catch {}
+    // Primary: live selection (works when palette is open or command fires immediately).
+    // Fallback: the last non-empty selection captured by content.js via selectionchange.
+    // Clicking into a text field clears window.getSelection(), so without the fallback
+    // {{selectedText}} would always be empty for inline slash triggers.
+    try {
+      const live  = window.getSelection()?.toString() ?? '';
+      const saved = (typeof window.__crlLastPageSelection === 'function')
+        ? window.__crlLastPageSelection()
+        : '';
+      ctx.selectedText = live.trim() ? live : saved;
+    } catch {}
 
     try {
       if (activeField) {

@@ -76,9 +76,43 @@ const Api = (() => {
   async function getProfile() {
     const rows = await apiFetch(
       '/profiles?select=id,email,tier,ai_calls_this_month,ai_reset_at,' +
-      'stripe_customer_id,stripe_subscription_id,subscription_status'
+      'stripe_customer_id,stripe_subscription_id,subscription_status,' +
+      'must_change_password,onboarded_at,full_name,job_title,company_name,' +
+      'company_size,use_case,referral_source'
     );
     return rows?.[0] ?? null;
+  }
+
+  /**
+   * Save onboarding demographics (called once after the first-login form).
+   */
+  async function saveDemographics({ fullName, userType, jobTitle, companyName, companySize, useCase, referralSource }) {
+    await apiFetch('/rpc/save_demographics', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({
+        p_full_name:       fullName       ?? null,
+        p_user_type:       userType       ?? null,
+        p_job_title:       jobTitle       ?? null,
+        p_company_name:    companyName    ?? null,
+        p_company_size:    companySize    ?? null,
+        p_use_case:        useCase        ?? null,
+        p_referral_source: referralSource ?? null,
+      }),
+    });
+  }
+
+  /**
+   * Save why the user is upgrading (called on upgrade modal submit,
+   * before redirecting to Stripe Checkout).
+   */
+  async function saveUpgradeReason(reason) {
+    if (!reason?.trim()) return;
+    await apiFetch('/rpc/save_upgrade_reason', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ p_reason: reason }),
+    }).catch(() => {}); // non-blocking
   }
 
   // ── Categories ────────────────────────────────────────────────────────────────
@@ -345,6 +379,162 @@ const Api = (() => {
     return rows?.[0];
   }
 
+  // ── Team provisioning ─────────────────────────────────────────────────────────
+
+  /**
+   * Owner creates a CannedIQ account for a team member and enrolls them
+   * immediately. Member receives an email with login credentials.
+   *
+   * @param {string} teamId
+   * @param {string} email
+   * @param {string} [fullName]
+   * @returns {{ user_id, email, is_new }}
+   */
+  async function provisionTeamMember(teamId, email, fullName = '') {
+    return fnFetch('provision-team-member', {
+      team_id:   teamId,
+      email,
+      full_name: fullName,
+    });
+  }
+
+  /**
+   * Owner resets a member's password, generating a new temporary one
+   * and emailing it to the member.
+   */
+  async function resetMemberPassword(teamId, userId) {
+    return fnFetch('reset-member-password', { team_id: teamId, user_id: userId });
+  }
+
+  /**
+   * Fetch rich member details for a team (owner only).
+   * Returns [{ userId, email, role, provisionedAt, tempPassword, lastSignInAt }]
+   */
+  async function getTeamMemberDetails(teamId) {
+    const result = await apiFetch('/rpc/get_team_member_details', {
+      method: 'POST',
+      body: JSON.stringify({ p_team_id: teamId }),
+    });
+    // RPC returns a JSONB array directly (or an error object)
+    if (result?.error) throw new ApiError(result.error, 403, result);
+    return (Array.isArray(result) ? result : []).map((m) => ({
+      userId:        m.user_id,
+      email:         m.email,
+      role:          m.role,
+      provisionedAt: m.provisioned_at,
+      tempPassword:  m.temp_password,
+      lastSignInAt:  m.last_sign_in_at,
+    }));
+  }
+
+  /**
+   * Member calls this after successfully changing their temporary password.
+   * Clears must_change_password and temp_password flags.
+   */
+  async function clearTempPasswordFlag() {
+    await apiFetch('/rpc/set_member_password_changed', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: '{}',
+    });
+  }
+
+  // ── Team seat usage ───────────────────────────────────────────────────────────
+
+  /**
+   * Returns seat usage for a team via the check_team_seat_available RPC.
+   * Shape: { available, seatsUsed, seatsPurchased, seatsAvailable }
+   */
+  async function getTeamSeatUsage(teamId) {
+    const result = await apiFetch('/rpc/check_team_seat_available', {
+      method: 'POST',
+      body: JSON.stringify({ p_team_id: teamId }),
+    });
+    if (!result) return null;
+    return {
+      available:       result.available,
+      seatsUsed:       result.seats_used,
+      seatsPurchased:  result.seats_purchased,
+      seatsAvailable:  result.seats_available,
+    };
+  }
+
+  // ── Team Commands (shared library) ───────────────────────────────────────────
+
+  /**
+   * Fetch all commands shared with teams the current user belongs to.
+   * Returns an array of CRL command objects, each with a `_teamId` and
+   * `_teamName` property so the UI can label them.
+   *
+   * @param {string} [teamId] — if provided, only fetch for that team
+   */
+  async function getTeamCommands(teamId) {
+    const session = await Auth.getValidSession();
+    if (!session) return [];
+
+    let url = `/team_commands?select=id,team_id,stack_id,stack_name,stack_color,stack_icon,command_data,teams(name)`;
+    if (teamId) url += `&team_id=eq.${encodeURIComponent(teamId)}`;
+    url += `&order=created_at.asc`;
+
+    const rows = await apiFetch(url);
+    return (rows ?? []).map((row) => ({
+      ...row.command_data,
+      id:         row.id,
+      _teamId:    row.team_id,
+      _teamName:  row.teams?.name ?? 'Team',
+      _stackId:   row.stack_id,
+      _stackName: row.stack_name,
+      _stackColor: row.stack_color,
+      _stackIcon:  row.stack_icon,
+      _isTeam:    true,
+    }));
+  }
+
+  /**
+   * Push a batch of commands to a team's shared library.
+   * Caller must be team owner or admin.
+   *
+   * @param {string}   teamId
+   * @param {object[]} commands  — CRL command objects
+   * @param {object[]} stacks    — CRL stack objects (used for stack metadata)
+   * @returns {number} count of rows upserted
+   */
+  async function upsertTeamCommands(teamId, commands, stacks = []) {
+    const session = await Auth.getValidSession();
+    if (!session) throw new AuthError('Not authenticated');
+
+    const stackMap = Object.fromEntries((stacks ?? []).map((s) => [s.id, s]));
+
+    const payload = commands.map((cmd) => {
+      const stack = stackMap[cmd.stackId] ?? {};
+      return {
+        id:           cmd.id,
+        stack_id:     cmd.stackId   ?? stack.id    ?? 'general',
+        stack_name:   stack.name    ?? 'Shared',
+        stack_color:  stack.color   ?? '#7c3aed',
+        stack_icon:   stack.icon    ?? '🏢',
+        command_data: cmd,
+      };
+    });
+
+    const { data, error } = await apiFetch('/rpc/upsert_team_commands', {
+      method: 'POST',
+      body: JSON.stringify({ p_team_id: teamId, p_commands: payload }),
+    });
+
+    if (error) throw new Error(error.message ?? 'upsert_team_commands failed');
+    return data ?? payload.length;
+  }
+
+  /**
+   * Delete a command from a team's shared library.
+   */
+  async function deleteTeamCommand(commandId) {
+    return apiFetch(`/team_commands?id=eq.${encodeURIComponent(commandId)}`, {
+      method: 'DELETE',
+    });
+  }
+
   // ── Billing / Stripe ──────────────────────────────────────────────────────────
 
   /**
@@ -380,6 +570,8 @@ const Api = (() => {
   return {
     // Profile
     getProfile,
+    saveDemographics,
+    saveUpgradeReason,
 
     // Personal categories + responses
     getCategories,
@@ -399,14 +591,28 @@ const Api = (() => {
 
     // Team members
     getTeamMembers,
+    getTeamMemberDetails,
     sendTeamInvite,
     getPendingInvites,
     revokeInvite,
     removeTeamMember,
 
-    // Team categories
+    // Team provisioning
+    provisionTeamMember,
+    resetMemberPassword,
+    clearTempPasswordFlag,
+
+    // Team seats
+    getTeamSeatUsage,
+
+    // Team categories (legacy)
     getTeamCategories,
     createTeamCategory,
+
+    // Team commands (shared library)
+    getTeamCommands,
+    upsertTeamCommands,
+    deleteTeamCommand,
 
     // Billing
     createCheckoutSession,

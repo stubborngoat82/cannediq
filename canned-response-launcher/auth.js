@@ -210,6 +210,29 @@ const Auth = (() => {
     return session?.user ?? null;
   }
 
+  /**
+   * Update the authenticated user's password.
+   * Requires a valid session (user must already be signed in).
+   * Used for the forced temp-password change flow on first login.
+   */
+  async function updatePassword(newPassword) {
+    const session = await getValidSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const res = await fetch(`${AUTH_URL}/user`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type':  'application/json',
+        'apikey':        SUPABASE_ANON,
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error_description || data.msg || 'Password update failed');
+    return data;
+  }
+
   // ── Helpers ────────────────────────────────────────────────
 
   /**
@@ -251,5 +274,6 @@ const Auth = (() => {
     getValidSession,
     signOut,
     getUser,
+    updatePassword,
   };
 })();

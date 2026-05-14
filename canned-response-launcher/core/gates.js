@@ -74,12 +74,20 @@ const CRLGates = (() => {
     const now = Date.now();
     if (_cached && (now - _cacheTs) < CACHE_TTL) return _cached;
 
+    const FREE = { plan: 'free', signedIn: false };
+    try {
+      if (!chrome?.runtime?.id) return FREE; // context invalidated
+    } catch { return FREE; }
+
     return new Promise((resolve) => {
-      chrome.storage.local.get(['crl_user_plan'], ({ crl_user_plan }) => {
-        _cached = crl_user_plan ?? { plan: 'free', signedIn: false };
-        _cacheTs = Date.now();
-        resolve(_cached);
-      });
+      try {
+        chrome.storage.local.get(['crl_user_plan'], ({ crl_user_plan }) => {
+          if (chrome.runtime.lastError) return resolve(FREE);
+          _cached = crl_user_plan ?? FREE;
+          _cacheTs = Date.now();
+          resolve(_cached);
+        });
+      } catch { resolve(FREE); }
     });
   }
 
@@ -164,12 +172,19 @@ const CRLGates = (() => {
   const HEAVY_USE_SHOWN  = 'crl_heavy_use_nudge_shown';
 
   async function recordLaunch() {
+    const fallback = { count: 0, shown: false };
+    try { if (!chrome?.runtime?.id) return fallback; } catch { return fallback; }
     return new Promise((resolve) => {
-      chrome.storage.local.get([HEAVY_USE_KEY, HEAVY_USE_SHOWN], (data) => {
-        const count  = (data[HEAVY_USE_KEY] ?? 0) + 1;
-        const shown  = data[HEAVY_USE_SHOWN] ?? false;
-        chrome.storage.local.set({ [HEAVY_USE_KEY]: count }, () => resolve({ count, shown }));
-      });
+      try {
+        chrome.storage.local.get([HEAVY_USE_KEY, HEAVY_USE_SHOWN], (data) => {
+          if (chrome.runtime.lastError) return resolve(fallback);
+          const count = (data[HEAVY_USE_KEY] ?? 0) + 1;
+          const shown = data[HEAVY_USE_SHOWN] ?? false;
+          try {
+            chrome.storage.local.set({ [HEAVY_USE_KEY]: count }, () => resolve({ count, shown }));
+          } catch { resolve({ count, shown }); }
+        });
+      } catch { resolve(fallback); }
     });
   }
 
@@ -181,7 +196,7 @@ const CRLGates = (() => {
     if (isPaid(user)) return false;
     const { count, shown } = await recordLaunch();
     if (shown || count !== HEAVY_USE_NUDGE) return false;
-    chrome.storage.local.set({ [HEAVY_USE_SHOWN]: true });
+    try { chrome.storage.local.set({ [HEAVY_USE_SHOWN]: true }); } catch {}
     return true;
   }
 

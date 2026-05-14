@@ -42,6 +42,8 @@
     wireStackModal();
     wireCommandModal();
     wireTeamModals();
+    wireOnboardingModal();
+    wireUpgradeSurveyModal();
     wireSettingsTab();
     wireFocusRefresh();
     await checkAuth();
@@ -89,12 +91,63 @@
     document.getElementById('auth-panel').hidden = true;
     document.getElementById('tab-nav').hidden    = false;
 
+    // If this is a provisioned member on their first login, force a password change first
+    if (currentProfile?.must_change_password) {
+      showChangePasswordModal();
+      return; // Proceed into app after they set a real password
+    }
+
+    // New user who hasn't completed onboarding — show the demographics form
+    if (currentProfile && !currentProfile.onboarded_at) {
+      showOnboardingModal();
+      // Don't return — let the app load in the background so they can skip
+    }
+
     // Honour ?tab=billing (or any valid tab) in the URL — used by portal return URL
     const urlTab    = new URLSearchParams(window.location.search).get('tab');
     const validTabs = ['commands', 'teams', 'billing', 'settings'];
     const startTab  = validTabs.includes(urlTab) ? urlTab : 'commands';
     activateTab(startTab);
     if (startTab === 'commands') await loadCommandsTab();
+  }
+
+  function showChangePasswordModal() {
+    const modal = document.getElementById('modal-change-password');
+    if (!modal) return;
+    modal.hidden = false;
+    document.getElementById('change-pw-new')?.focus();
+  }
+
+  async function handleChangePassword() {
+    const newPw    = document.getElementById('change-pw-new')?.value  ?? '';
+    const confirmPw = document.getElementById('change-pw-confirm')?.value ?? '';
+    const errEl    = document.getElementById('change-pw-error');
+    if (!newPw || newPw.length < 8) {
+      if (errEl) errEl.textContent = 'Password must be at least 8 characters.';
+      return;
+    }
+    if (newPw !== confirmPw) {
+      if (errEl) errEl.textContent = 'Passwords do not match.';
+      return;
+    }
+    const btn = document.getElementById('change-pw-submit');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      await Auth.updatePassword(newPw);
+      await Api.clearTempPasswordFlag();
+      if (currentProfile) currentProfile.must_change_password = false;
+      document.getElementById('modal-change-password').hidden = true;
+      // Now proceed into the app normally
+      const urlTab    = new URLSearchParams(window.location.search).get('tab');
+      const validTabs = ['commands', 'teams', 'billing', 'settings'];
+      const startTab  = validTabs.includes(urlTab) ? urlTab : 'commands';
+      activateTab(startTab);
+      if (startTab === 'commands') await loadCommandsTab();
+    } catch (err) {
+      if (errEl) errEl.textContent = err.message;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Set Password'; }
+    }
   }
 
   function enterGuestMode() {
@@ -196,6 +249,73 @@
   function setAuthLoading(on) { document.getElementById('auth-submit').disabled = on; document.getElementById('btn-google').disabled = on; }
 
   // ─── Tab navigation ─────────────────────────────────────────────────────────
+
+  // ── Onboarding modal ───────────────────────────────────────────────────────────
+
+  function showOnboardingModal() {
+    const modal = document.getElementById('modal-onboarding');
+    if (!modal) return;
+    modal.hidden = false;
+    document.getElementById('ob-full-name')?.focus();
+    // Pre-fill name if we have it
+    if (currentProfile?.full_name) {
+      const el = document.getElementById('ob-full-name');
+      if (el) el.value = currentProfile.full_name;
+    }
+  }
+
+  async function handleOnboardingSubmit(skip = false) {
+    const modal = document.getElementById('modal-onboarding');
+    const activeTypeBtn = document.querySelector('.ob-type-btn--active');
+    const userType = activeTypeBtn?.dataset.type ?? 'personal';
+
+    // Always mark onboarded so the form doesn't reappear
+    if (currentProfile) currentProfile.onboarded_at = new Date().toISOString();
+
+    try {
+      await Api.saveDemographics(skip ? {} : {
+        fullName:       document.getElementById('ob-full-name')?.value.trim()  || null,
+        userType,
+        jobTitle:       document.getElementById('ob-job-title')?.value.trim()  || null,
+        companyName:    document.getElementById('ob-company')?.value.trim()    || null,
+        companySize:    document.getElementById('ob-company-size')?.value      || null,
+        useCase:        document.getElementById('ob-use-case')?.value          || null,
+        referralSource: document.getElementById('ob-referral')?.value          || null,
+      });
+    } catch { /* Non-blocking */ }
+
+    if (modal) modal.hidden = true;
+  }
+
+  // ── Upgrade survey ─────────────────────────────────────────────────────────────
+  // _pendingCheckout stores the plan + quantity while the user fills in the survey
+
+  let _pendingCheckout = null;
+
+  function showUpgradeSurvey(plan, quantity) {
+    _pendingCheckout = { plan, quantity };
+    const modal = document.getElementById('modal-upgrade-survey');
+    if (modal) modal.hidden = false;
+  }
+
+  async function submitUpgradeSurvey(skip = false) {
+    const modal = document.getElementById('modal-upgrade-survey');
+    if (modal) modal.hidden = true;
+
+    if (!skip) {
+      const select = document.getElementById('upgrade-reason-select')?.value || '';
+      const text   = document.getElementById('upgrade-reason-text')?.value.trim() || '';
+      const reason = [select, text].filter(Boolean).join(' — ');
+      Api.saveUpgradeReason(reason).catch(() => {}); // fire-and-forget
+    }
+
+    // Now proceed to checkout
+    if (_pendingCheckout) {
+      const { plan, quantity } = _pendingCheckout;
+      _pendingCheckout = null;
+      await doCheckout(plan, quantity);
+    }
+  }
 
   function wireTabEvents() {
     document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -673,6 +793,49 @@
       if (e.key === 'Enter') handleCreateTeamCategory();
       if (e.key === 'Escape') closeModal('modal-team-category');
     });
+
+    // Change-password modal (shown to provisioned members on first login)
+    document.getElementById('change-pw-submit')?.addEventListener('click', handleChangePassword);
+    document.getElementById('change-pw-new')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('change-pw-confirm')?.focus();
+    });
+    document.getElementById('change-pw-confirm')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleChangePassword();
+    });
+  }
+
+  function wireOnboardingModal() {
+    document.getElementById('ob-submit')?.addEventListener('click', () => handleOnboardingSubmit(false));
+    document.getElementById('ob-skip')?.addEventListener('click',   () => handleOnboardingSubmit(true));
+    document.querySelector('#modal-onboarding .modal-backdrop')
+      ?.addEventListener('click', () => handleOnboardingSubmit(true));
+
+    // Personal / Professional toggle
+    document.querySelectorAll('.ob-type-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.ob-type-btn').forEach((b) => b.classList.remove('ob-type-btn--active'));
+        btn.classList.add('ob-type-btn--active');
+        const isPro = btn.dataset.type === 'professional';
+        // Show/hide professional-only fields
+        const proFields = document.getElementById('ob-pro-fields');
+        if (proFields) proFields.classList.toggle('ob-pro-fields--hidden', !isPro);
+        // Swap use-case optgroups
+        const personalGroup = document.getElementById('ob-use-personal-group');
+        const workGroup     = document.getElementById('ob-use-work-group');
+        if (personalGroup) personalGroup.hidden = isPro;
+        if (workGroup)     workGroup.hidden     = !isPro;
+        // Reset the use-case select when switching
+        const useCase = document.getElementById('ob-use-case');
+        if (useCase) useCase.value = '';
+      });
+    });
+  }
+
+  function wireUpgradeSurveyModal() {
+    document.getElementById('upgrade-survey-submit')?.addEventListener('click', () => submitUpgradeSurvey(false));
+    document.getElementById('upgrade-survey-skip')?.addEventListener('click',   () => submitUpgradeSurvey(true));
+    document.querySelector('#modal-upgrade-survey .modal-backdrop')
+      ?.addEventListener('click', () => submitUpgradeSurvey(true));
   }
 
   async function loadTeamsTab() {
@@ -736,39 +899,85 @@
   function renderTeamDetailHTML(team) {
     return `
       <div class="team-members-section" id="team-detail-${team.id}">
-        <div class="team-members-title">Members</div>
-        <ul class="member-list" id="member-list-${team.id}"><li class="member-item" style="color:#9ca3af;font-style:italic">Loading…</li></ul>
-        <div class="team-members-title" style="margin-top:16px">Invite by email</div>
-        <p style="font-size:12px;color:#9ca3af;margin-bottom:8px">We'll email them a link. They sign up and are added automatically.</p>
-        <div class="invite-row">
-          <input type="email" class="invite-input" placeholder="colleague@company.com" data-team-id="${team.id}" />
-          <button class="btn btn-primary btn-sm btn-inline-invite" data-team-id="${team.id}">Send invite</button>
+
+        <!-- Seat usage bar -->
+        <div id="seat-usage-${team.id}" class="team-seat-usage">
+          <span style="color:#9ca3af;font-style:italic;font-size:12px">Loading seat info…</span>
         </div>
-        <div id="invite-feedback-${team.id}" style="margin-top:8px"></div>
-        <div class="team-members-title" style="margin-top:16px">Pending invites</div>
-        <ul class="member-list" id="pending-list-${team.id}"><li class="member-item" style="color:#9ca3af;font-style:italic">Loading…</li></ul>
+
+        <!-- Member roster with activity info -->
+        <div class="team-members-title">Team Members</div>
+        <div class="member-table-header">
+          <span>Email</span>
+          <span>Last Active</span>
+          <span>Status</span>
+          <span></span>
+        </div>
+        <ul class="member-list member-list--table" id="member-list-${team.id}">
+          <li class="member-item" style="color:#9ca3af;font-style:italic">Loading…</li>
+        </ul>
+
+        <!-- Add member form -->
+        <div class="team-members-title" style="margin-top:20px">Add Member</div>
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:10px">
+          We'll create an account and email them their login credentials. They're added to your team immediately.
+        </p>
+        <div class="provision-form">
+          <input type="text"  class="provision-name-input"  placeholder="Full name (optional)" data-team-id="${team.id}" />
+          <input type="email" class="provision-email-input" placeholder="email@company.com"     data-team-id="${team.id}" />
+          <button class="btn btn-primary btn-sm btn-provision" data-team-id="${team.id}">Add &amp; Email Credentials</button>
+        </div>
+        <div id="provision-feedback-${team.id}" style="margin-top:8px"></div>
+
+        <!-- Team Categories -->
         <div class="team-cats-section">
           <div class="team-members-title" style="margin-top:16px">Team Categories</div>
-          <ul class="team-cat-list" id="team-cat-list-${team.id}"><li style="font-size:13px;color:#9ca3af;font-style:italic">Loading…</li></ul>
+          <ul class="team-cat-list" id="team-cat-list-${team.id}">
+            <li style="font-size:13px;color:#9ca3af;font-style:italic">Loading…</li>
+          </ul>
           <button class="btn btn-ghost btn-sm btn-add-team-cat" data-team-id="${team.id}" style="margin-top:6px">+ Add Category</button>
         </div>
+
+      </div>`;
+  }
+
+  function renderSeatUsage(teamId, seatsUsed, seatsPurchased) {
+    const el = document.getElementById(`seat-usage-${teamId}`);
+    if (!el) return;
+    const pct      = Math.min(100, Math.round((seatsUsed / seatsPurchased) * 100));
+    const atLimit  = seatsUsed >= seatsPurchased;
+    const barColor = atLimit ? '#dc2626' : pct >= 80 ? '#f59e0b' : '#4f46e5';
+    el.innerHTML = `
+      <div class="seat-usage-label">
+        <span>${seatsUsed} of ${seatsPurchased} seat${seatsPurchased !== 1 ? 's' : ''} used</span>
+        ${atLimit
+          ? '<span class="seat-badge seat-badge--full">Full — upgrade to invite more</span>'
+          : `<span class="seat-badge">${seatsPurchased - seatsUsed} available</span>`}
+      </div>
+      <div class="seat-bar-track">
+        <div class="seat-bar-fill" style="width:${pct}%;background:${barColor}"></div>
       </div>`;
   }
 
   function wireExpandedTeamButtons(card, team) {
-    const inviteBtn = card.querySelector('.btn-inline-invite');
-    if (inviteBtn) {
-      inviteBtn.addEventListener('click', async () => {
-        const input = card.querySelector(`.invite-input[data-team-id="${team.id}"]`);
-        await doSendInvite(team.id, input.value.trim(), input);
+    // Add member form — provision new account or add existing user
+    const provisionBtn = card.querySelector('.btn-provision');
+    if (provisionBtn) {
+      provisionBtn.addEventListener('click', async () => {
+        const emailInput = card.querySelector(`.provision-email-input[data-team-id="${team.id}"]`);
+        const nameInput  = card.querySelector(`.provision-name-input[data-team-id="${team.id}"]`);
+        await doProvisionMember(team.id, emailInput.value.trim(), nameInput.value.trim(), emailInput, nameInput);
       });
     }
-    const inviteInput = card.querySelector(`.invite-input[data-team-id="${team.id}"]`);
-    if (inviteInput) {
-      inviteInput.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter') await doSendInvite(team.id, inviteInput.value.trim(), inviteInput);
+    card.querySelector(`.provision-email-input[data-team-id="${team.id}"]`)
+      ?.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        const emailInput = card.querySelector(`.provision-email-input[data-team-id="${team.id}"]`);
+        const nameInput  = card.querySelector(`.provision-name-input[data-team-id="${team.id}"]`);
+        await doProvisionMember(team.id, emailInput.value.trim(), nameInput.value.trim(), emailInput, nameInput);
       });
-    }
+
+    // Team Categories button
     const addCatBtn = card.querySelector('.btn-add-team-cat');
     if (addCatBtn) {
       addCatBtn.addEventListener('click', () => {
@@ -780,83 +989,122 @@
     }
   }
 
+  // Format a date/time as relative ("2 hours ago", "3 days ago")
+  function relativeTime(isoString) {
+    if (!isoString) return 'Never';
+    const diff = Date.now() - new Date(isoString).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins <   2) return 'Just now';
+    if (mins <  60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs  <  24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days <  30) return `${days}d ago`;
+    return new Date(isoString).toLocaleDateString();
+  }
+
   async function refreshExpandedTeam(teamId) {
     try {
-      const [members, pendingInvites, teamCats] = await Promise.all([
-        Api.getTeamMembers(teamId),
-        Api.getPendingInvites(teamId),
+      const [memberDetails, teamCats, seatInfo] = await Promise.all([
+        Api.getTeamMemberDetails(teamId).catch(() => null),
         Api.getTeamCategories(),
+        Api.getTeamSeatUsage(teamId).catch(() => null),
       ]);
 
+      // Seat usage bar
+      if (seatInfo) {
+        renderSeatUsage(teamId, seatInfo.seatsUsed, seatInfo.seatsPurchased);
+      }
+
+      // Member roster — rich view with email, last active, status
       const memberListEl = document.getElementById(`member-list-${teamId}`);
       if (memberListEl) {
-        memberListEl.innerHTML = members.length === 0
-          ? '<li class="member-item" style="font-style:italic;color:#9ca3af">No members yet.</li>'
-          : members.map((m) => `
-              <li class="member-item">
-                <span class="member-email">${escHtml(m.userId)}</span>
-                <span class="member-role">${escHtml(m.role)}</span>
-                <button class="btn btn-icon btn-remove-member" data-team-id="${teamId}" data-user-id="${m.userId}" title="Remove">✕</button>
-              </li>`).join('');
-        memberListEl.querySelectorAll('.btn-remove-member').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            if (!confirm('Remove this member?')) return;
-            try { await Api.removeTeamMember(btn.dataset.teamId, btn.dataset.userId); await refreshExpandedTeam(teamId); }
-            catch (err) { alert(err.message); }
+        if (!memberDetails || memberDetails.length === 0) {
+          memberListEl.innerHTML =
+            '<li class="member-item" style="font-style:italic;color:#9ca3af;grid-column:1/-1">No members yet — add one below.</li>';
+        } else {
+          memberListEl.innerHTML = memberDetails.map((m) => {
+            const statusBadge = m.tempPassword
+              ? '<span class="member-status member-status--pending" title="Awaiting password change">Temp password</span>'
+              : m.lastSignInAt
+                ? '<span class="member-status member-status--active">Active</span>'
+                : '<span class="member-status member-status--never">Never signed in</span>';
+            return `
+              <li class="member-item member-item--row" data-user-id="${m.userId}">
+                <span class="member-email">${escHtml(m.email)}</span>
+                <span class="member-last-active">${relativeTime(m.lastSignInAt)}</span>
+                ${statusBadge}
+                <span class="member-actions">
+                  <button class="btn btn-ghost btn-xs btn-reset-pw"
+                    data-team-id="${teamId}" data-user-id="${m.userId}"
+                    data-email="${escHtml(m.email)}" title="Reset password">Reset pw</button>
+                  <button class="btn btn-danger btn-xs btn-remove-member"
+                    data-team-id="${teamId}" data-user-id="${m.userId}" title="Remove">Remove</button>
+                </span>
+              </li>`;
+          }).join('');
+
+          memberListEl.querySelectorAll('.btn-reset-pw').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              if (!confirm(`Reset password for ${btn.dataset.email}? They'll receive a new temporary password by email.`)) return;
+              try {
+                btn.disabled = true;
+                await Api.resetMemberPassword(btn.dataset.teamId, btn.dataset.userId);
+                btn.textContent = 'Sent!';
+                setTimeout(() => { btn.disabled = false; btn.textContent = 'Reset pw'; }, 3000);
+              } catch (err) { alert(err.message); btn.disabled = false; }
+            });
           });
-        });
+
+          memberListEl.querySelectorAll('.btn-remove-member').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              if (!confirm('Remove this member from the team?')) return;
+              try {
+                await Api.removeTeamMember(btn.dataset.teamId, btn.dataset.userId);
+                await refreshExpandedTeam(teamId);
+              } catch (err) { alert(err.message); }
+            });
+          });
+        }
       }
 
-      const pendingListEl = document.getElementById(`pending-list-${teamId}`);
-      if (pendingListEl) {
-        pendingListEl.innerHTML = pendingInvites.length === 0
-          ? '<li class="member-item" style="font-style:italic;color:#9ca3af">No pending invites.</li>'
-          : pendingInvites.map((inv) => {
-              const days = Math.ceil((new Date(inv.expiresAt) - Date.now()) / 86400000);
-              return `
-                <li class="member-item">
-                  <span class="member-email">${escHtml(inv.email)}</span>
-                  <span class="member-role" style="color:#f59e0b">expires ${days}d</span>
-                  <button class="btn btn-icon btn-revoke-invite" data-invite-id="${inv.id}" title="Revoke">✕</button>
-                </li>`;
-            }).join('');
-        pendingListEl.querySelectorAll('.btn-revoke-invite').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            if (!confirm('Revoke this invite?')) return;
-            try { await Api.revokeInvite(btn.dataset.inviteId); await refreshExpandedTeam(teamId); }
-            catch (err) { alert(err.message); }
-          });
-        });
-      }
-
+      // Team Categories
       const catListEl = document.getElementById(`team-cat-list-${teamId}`);
       if (catListEl) {
         const thisCats = teamCats.filter((c) => c.teamId === teamId);
         catListEl.innerHTML = thisCats.length === 0
           ? '<li style="font-size:13px;color:#9ca3af;font-style:italic">No team categories yet.</li>'
-          : thisCats.map((c) => `<li class="team-cat-item"><span class="team-cat-dot"></span>${escHtml(c.name)} <span style="color:#9ca3af;font-size:11px">(${c.responses.length} responses)</span></li>`).join('');
+          : thisCats.map((c) =>
+              `<li class="team-cat-item"><span class="team-cat-dot"></span>${escHtml(c.name)} ` +
+              `<span style="color:#9ca3af;font-size:11px">(${c.responses.length} responses)</span></li>`
+            ).join('');
       }
     } catch (err) { console.warn('[CRL] refreshExpandedTeam error', err.message); }
   }
 
-  async function doSendInvite(teamId, email, inputEl) {
-    if (!email) { inputEl?.focus(); return; }
-    const feedbackEl = document.getElementById(`invite-feedback-${teamId}`);
-    const btn = document.querySelector(`.btn-inline-invite[data-team-id="${teamId}"]`);
-    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  async function doProvisionMember(teamId, email, fullName, emailInputEl, nameInputEl) {
+    if (!email) { emailInputEl?.focus(); return; }
+    const feedbackEl = document.getElementById(`provision-feedback-${teamId}`);
+    const btn = document.querySelector(`.btn-provision[data-team-id="${teamId}"]`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
     try {
-      const { link } = await Api.sendTeamInvite(teamId, email);
-      if (inputEl) inputEl.value = '';
+      const { email: addedEmail, is_new: isNew } =
+        await Api.provisionTeamMember(teamId, email, fullName);
+      if (emailInputEl) emailInputEl.value = '';
+      if (nameInputEl)  nameInputEl.value  = '';
       if (feedbackEl) {
-        feedbackEl.innerHTML = `
-          <span style="font-size:12.5px;color:#059669">✓ Invite sent to ${escHtml(email)}.</span>
-          <button class="btn-link" style="font-size:12px;margin-left:8px" onclick="navigator.clipboard.writeText('${escHtml(link)}').then(()=>this.textContent='Copied!').catch(()=>{})">Copy link</button>`;
+        feedbackEl.innerHTML = isNew
+          ? `<span style="font-size:12.5px;color:#059669">✓ Account created for ${escHtml(addedEmail)}. Credentials emailed.</span>`
+          : `<span style="font-size:12.5px;color:#059669">✓ ${escHtml(addedEmail)} added to the team.</span>`;
+        setTimeout(() => { if (feedbackEl) feedbackEl.innerHTML = ''; }, 5000);
       }
       await refreshExpandedTeam(teamId);
     } catch (err) {
-      if (feedbackEl) feedbackEl.innerHTML = `<span style="font-size:12.5px;color:#dc2626">${escHtml(err.message)}</span>`;
+      if (feedbackEl) {
+        feedbackEl.innerHTML = `<span style="font-size:12.5px;color:#dc2626">${escHtml(err.message)}</span>`;
+      }
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Send invite'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Add & Email Credentials'; }
     }
   }
 
@@ -1134,7 +1382,13 @@
 
   // ── Checkout ──────────────────────────────────────────────────────────────────
 
-  async function handleCheckout(plan, quantity = 1) {
+  // handleCheckout intercepts the click to show the upgrade survey first.
+  // After survey submission, doCheckout performs the actual Stripe redirect.
+  function handleCheckout(plan, quantity = 1) {
+    showUpgradeSurvey(plan, quantity);
+  }
+
+  async function doCheckout(plan, quantity = 1) {
     const btn = document.getElementById(`btn-plan-${plan}`) ?? document.getElementById('btn-upgrade-cta');
     const origText = btn?.textContent;
     if (btn) { btn.disabled = true; btn.textContent = 'Redirecting to Stripe…'; }
@@ -1194,6 +1448,9 @@
   function wireSettingsTab() {}
 
   async function loadSettingsTab() {
+    // Always close the import modal when switching to settings
+    closeTeamImportModal();
+
     const settings = await CRLStorage.getSettings();
     document.getElementById('setting-clipboard-enabled').checked = settings.clipboardEnabled || false;
 
@@ -1203,6 +1460,15 @@
       document.getElementById('btn-export-commands').addEventListener('click', exportCommands);
       document.getElementById('btn-import-commands').addEventListener('click', () => document.getElementById('import-file-input').click());
       document.getElementById('import-file-input').addEventListener('change', importCommands);
+      document.getElementById('btn-import-team-commands').addEventListener('click', openTeamImportPicker);
+      document.getElementById('import-team-file-input').addEventListener('change', onTeamFileSelected);
+      document.getElementById('btn-cancel-team-import').addEventListener('click', closeTeamImportModal);
+      document.getElementById('btn-confirm-team-import').addEventListener('click', confirmTeamImport);
+
+      // Close on backdrop click
+      document.getElementById('modal-team-import').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeTeamImportModal();
+      });
     }
 
     await loadAIUsage();
@@ -1342,6 +1608,81 @@
       alert('Import failed: ' + err.message);
     }
     e.target.value = '';
+  }
+
+  // ── Team import ─────────────────────────────────────────────────────────────
+
+  let _teamImportParsed = null; // holds parsed JSON between file selection and confirmation
+
+  async function openTeamImportPicker() {
+    if (!currentUser) { alert('Sign in to import to a team.'); return; }
+
+    // Load the file first, then show team picker
+    document.getElementById('import-team-file-input').click();
+  }
+
+  async function onTeamFileSelected(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+
+    let parsed;
+    try {
+      parsed = JSON.parse(await file.text());
+      if (!Array.isArray(parsed.commands)) throw new Error('Invalid format');
+    } catch (err) {
+      alert('Import failed: ' + err.message);
+      return;
+    }
+
+    _teamImportParsed = parsed;
+
+    // Populate team dropdown
+    const select = document.getElementById('team-import-select');
+    select.innerHTML = '<option value="">Loading…</option>';
+    try {
+      const myTeams = await Api.getTeams();
+      if (!myTeams.length) {
+        alert('You need to create or belong to a team first (Teams tab).');
+        _teamImportParsed = null;
+        return;
+      }
+      select.innerHTML = myTeams.map((t) =>
+        `<option value="${escHtml(t.id)}">${escHtml(t.name)}</option>`
+      ).join('');
+    } catch {
+      select.innerHTML = '<option value="">Failed to load teams</option>';
+    }
+
+    const modal = document.getElementById('modal-team-import');
+    modal.style.display = 'flex';
+  }
+
+  function closeTeamImportModal() {
+    document.getElementById('modal-team-import').style.display = 'none';
+    _teamImportParsed = null;
+  }
+
+  async function confirmTeamImport() {
+    const teamId = document.getElementById('team-import-select').value;
+    if (!teamId) { alert('Please select a team.'); return; }
+    if (!_teamImportParsed) { closeTeamImportModal(); return; }
+
+    const btn = document.getElementById('btn-confirm-team-import');
+    btn.disabled = true;
+    btn.textContent = 'Importing…';
+
+    try {
+      const { commands = [], stacks = [] } = _teamImportParsed;
+      const count = await Api.upsertTeamCommands(teamId, commands, stacks);
+      closeTeamImportModal();
+      alert(`✓ ${commands.length} command${commands.length !== 1 ? 's' : ''} shared with the team. Team members will see them on their next sync.`);
+    } catch (err) {
+      alert('Team import failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Import to Team';
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

@@ -303,8 +303,63 @@ async function refreshUserPlan() {
 }
 
 // Refresh plan on startup, every 30 min, and right after billing events
-chrome.runtime.onInstalled.addListener(() => refreshUserPlan());
-chrome.alarms.create('planRefresh', { periodInMinutes: 30 });
+chrome.runtime.onInstalled.addListener(() => { refreshUserPlan(); syncTeamCommands(); });
+chrome.alarms.create('planRefresh',      { periodInMinutes: 30 });
+chrome.alarms.create('teamCommandsSync', { periodInMinutes: 30 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'planRefresh') refreshUserPlan();
+  if (alarm.name === 'planRefresh')      refreshUserPlan();
+  if (alarm.name === 'teamCommandsSync') syncTeamCommands();
 });
+
+// ── 9. Team command sync ───────────────────────────────────────────────────────
+// Pulls shared commands from Supabase and merges them into local storage.
+// Team commands are marked with _isTeam:true so they can be identified and
+// refreshed without overwriting personal commands.
+
+async function syncTeamCommands() {
+  let session;
+  try { session = await Auth.getValidSession(); } catch {}
+  if (!session) return;
+
+  try {
+    // Fetch all team commands the user has access to
+    const endpoint = `${SUPABASE_URL}/rest/v1/team_commands` +
+      `?select=id,team_id,stack_id,stack_name,stack_color,stack_icon,command_data,teams(name)` +
+      `&order=created_at.asc`;
+
+    const res = await fetch(endpoint, {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey':        SUPABASE_ANON,
+        'Accept':        'application/json',
+      },
+    });
+    if (!res.ok) return;
+
+    const rows = await res.json().catch(() => []);
+    if (!rows.length) return;
+
+    // Build the merged command objects
+    const teamCmds = rows.map((row) => ({
+      ...(row.command_data ?? {}),
+      id:         row.id,
+      stackId:    row.stack_id    ?? 'general',
+      _teamId:    row.team_id,
+      _teamName:  row.teams?.name ?? 'Team',
+      _stackName: row.stack_name  ?? 'Shared',
+      _stackColor: row.stack_color ?? '#7c3aed',
+      _stackIcon:  row.stack_icon  ?? '🏢',
+      _isTeam:    true,
+    }));
+
+    // Merge into local storage: replace existing team commands, keep personal ones
+    const data = await CRLStorage.read();
+    const personal = (data.commands ?? []).filter((c) => !c._isTeam);
+    data.commands = [...personal, ...teamCmds];
+    await CRLStorage.write(data);
+
+    console.log(`[CRL] Team sync: ${teamCmds.length} shared command(s) loaded`);
+  } catch (err) {
+    console.warn('[CRL] Team command sync failed:', err.message);
+  }
+}

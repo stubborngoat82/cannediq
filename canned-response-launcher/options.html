@@ -163,14 +163,43 @@
             <div class="settings-row">
               <div class="settings-row-label">
                 <strong>Import / Export</strong>
-                <span>Back up your commands or move them between devices.</span>
+                <span>Back up your commands or share them with your team.</span>
               </div>
-              <div style="display:flex;gap:8px">
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button id="btn-export-commands" class="btn btn-ghost btn-sm">Export JSON</button>
-                <button id="btn-import-commands" class="btn btn-ghost btn-sm">Import JSON</button>
+                <button id="btn-import-commands" class="btn btn-ghost btn-sm">Import → My Commands</button>
+                <button id="btn-import-team-commands" class="btn btn-ghost btn-sm">Import → Team</button>
               </div>
             </div>
-            <input id="import-file-input" type="file" accept=".json" hidden />
+            <input id="import-file-input"      type="file" accept=".json" hidden />
+            <input id="import-team-file-input" type="file" accept=".json" hidden />
+
+            <!-- Team import picker modal -->
+            <div id="modal-team-import" style="
+              display:none;position:fixed;inset:0;z-index:9999;background:#0008;
+              align-items:center;justify-content:center;
+            ">
+              <div style="
+                background:#1a1a1f;border:1px solid #2a2a35;border-radius:16px;
+                padding:32px;width:380px;max-width:90vw;
+              ">
+                <h3 style="margin:0 0 8px;font-size:16px;color:#f8fafc">Import to Team</h3>
+                <p style="margin:0 0 20px;font-size:13px;color:#94a3b8">
+                  Choose which team to share these commands with. All team members will get access.
+                </p>
+                <select id="team-import-select" style="
+                  width:100%;padding:10px 12px;border-radius:8px;
+                  background:#0f0f11;border:1px solid #2a2a35;
+                  color:#e2e8f0;font-size:14px;margin-bottom:20px;
+                ">
+                  <option value="">Loading teams…</option>
+                </select>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                  <button id="btn-cancel-team-import" class="btn btn-ghost btn-sm">Cancel</button>
+                  <button id="btn-confirm-team-import" class="btn btn-primary btn-sm">Import to Team</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="settings-footer">
@@ -384,6 +413,164 @@
       <div class="modal-footer">
         <button id="modal-team-cat-cancel" class="btn btn-ghost">Cancel</button>
         <button id="modal-team-cat-save"   class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding survey — shown to new users on first sign-in -->
+  <div id="modal-onboarding" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+
+      <div class="onboarding-header">
+        <div class="onboarding-logo">⚡ CannedIQ</div>
+        <h3 id="onboarding-title">Welcome! Tell us a bit about yourself</h3>
+        <p class="onboarding-sub">Takes 30 seconds — helps us build the right things for you.</p>
+      </div>
+
+      <!-- Personal / Professional toggle -->
+      <div class="ob-type-toggle" id="ob-type-toggle">
+        <button class="ob-type-btn ob-type-btn--active" data-type="personal" id="ob-type-personal">
+          👤 Personal use
+        </button>
+        <button class="ob-type-btn" data-type="professional" id="ob-type-professional">
+          🏢 Work / business
+        </button>
+      </div>
+
+      <div class="onboarding-grid">
+
+        <!-- Row 1: always visible -->
+        <label>Your name <span class="ob-optional">(optional)</span>
+          <input id="ob-full-name" type="text" placeholder="Jane Smith" autocomplete="name" />
+        </label>
+
+        <!-- Referral always visible -->
+        <label>How did you find us?
+          <select id="ob-referral">
+            <option value="">Select…</option>
+            <option value="chrome_store">Chrome Web Store</option>
+            <option value="google">Google search</option>
+            <option value="friend">Friend / word of mouth</option>
+            <option value="colleague">Colleague / referral</option>
+            <option value="twitter">Twitter / X</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="blog">Blog / article</option>
+            <option value="reddit">Reddit</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+
+        <!-- Use case — options swap based on type -->
+        <label style="grid-column:1/-1">What will you mainly use CannedIQ for?
+          <select id="ob-use-case">
+            <!-- Personal options (default) -->
+            <optgroup label="Personal" id="ob-use-personal-group">
+              <option value="personal_productivity">Personal productivity &amp; shortcuts</option>
+              <option value="writing">Writing / content creation</option>
+              <option value="job_search">Job search &amp; applications</option>
+              <option value="study">Study / research / notes</option>
+              <option value="freelance">Freelance client communication</option>
+              <option value="side_project">Side project / hobby</option>
+              <option value="other">Other</option>
+            </optgroup>
+            <!-- Business options (shown when Work/Business is selected) -->
+            <optgroup label="Work" id="ob-use-work-group" hidden>
+              <option value="customer_support">Customer support / helpdesk</option>
+              <option value="sales">Sales / outreach</option>
+              <option value="recruiting">Recruiting / HR</option>
+              <option value="marketing">Marketing / social media</option>
+              <option value="engineering">Engineering / devops</option>
+              <option value="legal">Legal / compliance</option>
+              <option value="operations">Operations / admin</option>
+              <option value="other">Other</option>
+            </optgroup>
+          </select>
+        </label>
+
+        <!-- Professional-only fields (hidden by default) -->
+        <div id="ob-pro-fields" class="ob-pro-fields ob-pro-fields--hidden">
+          <label>Job title <span class="ob-optional">(optional)</span>
+            <input id="ob-job-title" type="text" placeholder="e.g. Support Manager" autocomplete="organization-title" />
+          </label>
+          <label>Company name <span class="ob-optional">(optional)</span>
+            <input id="ob-company" type="text" placeholder="e.g. Acme Corp" autocomplete="organization" />
+          </label>
+          <label>Team size
+            <select id="ob-company-size">
+              <option value="">Select…</option>
+              <option value="solo">Just me</option>
+              <option value="2-10">2–10 people</option>
+              <option value="11-50">11–50 people</option>
+              <option value="51-200">51–200 people</option>
+              <option value="201-1000">201–1,000 people</option>
+              <option value="1000+">1,000+ people</option>
+            </select>
+          </label>
+        </div>
+
+      </div><!-- /.onboarding-grid -->
+
+      <div class="modal-footer" style="padding:0 28px 24px;border-top:none">
+        <button id="ob-skip"   class="btn btn-ghost">Skip for now</button>
+        <button id="ob-submit" class="btn btn-primary">Save &amp; Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upgrade survey — shown before redirecting to Stripe Checkout -->
+  <div id="modal-upgrade-survey" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="upgrade-survey-title">
+      <h3 id="upgrade-survey-title">One quick question before you upgrade</h3>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:14px">Your answer helps us prioritize features that matter most.</p>
+      <label>What's your main reason for upgrading?
+        <select id="upgrade-reason-select" style="margin-top:6px">
+          <option value="">Select one…</option>
+          <optgroup label="Personal">
+            <option value="more_commands_personal">Need more commands / stacks</option>
+            <option value="ai_personal">Want AI-powered responses</option>
+            <option value="remove_limits_personal">Hit the free tier limits</option>
+            <option value="support_product">Love the product — supporting it</option>
+          </optgroup>
+          <optgroup label="Work / Team">
+            <option value="more_commands_work">Need more commands for work</option>
+            <option value="ai_work">Want AI for work responses</option>
+            <option value="team_sharing">Sharing responses with my team</option>
+            <option value="remove_limits_work">Outgrew the free tier at work</option>
+          </optgroup>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label style="margin-top:12px">Anything else? <span style="color:#9ca3af">(optional)</span>
+        <textarea id="upgrade-reason-text" rows="2"
+          placeholder="e.g. I use this every day and need unlimited stacks…"
+          style="resize:vertical;font-family:inherit;font-size:13px;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;width:100%;margin-top:4px;outline:none;box-sizing:border-box"></textarea>
+      </label>
+      <div class="modal-footer" style="margin-top:16px">
+        <button id="upgrade-survey-skip"   class="btn btn-ghost">Skip</button>
+        <button id="upgrade-survey-submit" class="btn btn-primary">Continue to Checkout →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Force password change — shown to provisioned members on first login -->
+  <div id="modal-change-password" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="change-pw-title">
+      <h3 id="change-pw-title">Set Your Password</h3>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:16px">
+        Your account was created with a temporary password. Please set a permanent password to continue.
+      </p>
+      <label>New password
+        <input id="change-pw-new" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
+      </label>
+      <label style="margin-top:10px">Confirm password
+        <input id="change-pw-confirm" type="password" placeholder="Repeat password" autocomplete="new-password" />
+      </label>
+      <p id="change-pw-error" style="font-size:12.5px;color:#dc2626;margin-top:8px;min-height:18px"></p>
+      <div class="modal-footer">
+        <button id="change-pw-submit" class="btn btn-primary" style="width:100%">Set Password</button>
       </div>
     </div>
   </div>

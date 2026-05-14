@@ -94,6 +94,13 @@ Deno.serve(async (req: Request) => {
           subscription_status:    sub.status,
         });
         console.log(`[stripe-webhook] User ${userId} upgraded to ${plan} (status: ${sub.status})`);
+
+        // For team plans, sync the purchased seat count to the teams table.
+        // Quantity comes from the first subscription line item.
+        if (plan === 'team') {
+          const quantity = sub.items.data[0]?.quantity ?? 1;
+          await syncTeamSeats(supabase, userId, quantity);
+        }
         break;
       }
 
@@ -105,14 +112,20 @@ Deno.serve(async (req: Request) => {
 
         // If status is no longer active, downgrade to free
         const isActive = sub.status === 'active' || sub.status === 'trialing';
-        const tier = isActive ? (sub.metadata?.plan ?? 'pro') : 'free';
+        const plan = isActive ? (sub.metadata?.plan ?? 'pro') : 'free';
 
         await updateProfile(supabase, userId, {
-          tier,
+          tier:                   plan,
           stripe_subscription_id: sub.id,
           subscription_status:    sub.status,
         });
-        console.log(`[stripe-webhook] User ${userId} subscription → ${sub.status} (tier: ${tier})`);
+        console.log(`[stripe-webhook] User ${userId} subscription → ${sub.status} (tier: ${plan})`);
+
+        // Sync seat count whenever a team subscription changes (seat upgrades/downgrades)
+        if (plan === 'team' && isActive) {
+          const quantity = sub.items.data[0]?.quantity ?? 1;
+          await syncTeamSeats(supabase, userId, quantity);
+        }
         break;
       }
 
@@ -128,6 +141,11 @@ Deno.serve(async (req: Request) => {
           subscription_status:    'canceled',
         });
         console.log(`[stripe-webhook] User ${userId} downgraded to free (subscription deleted)`);
+
+        // Reset seats to 1 (owner only) when team subscription is cancelled
+        if (sub.metadata?.plan === 'team') {
+          await syncTeamSeats(supabase, userId, 1);
+        }
         break;
       }
 
@@ -161,5 +179,28 @@ async function updateProfile(
     .eq('id', userId);
   if (error) {
     throw new Error(`Failed to update profile ${userId}: ${error.message}`);
+  }
+}
+
+/**
+ * Write the Stripe seat quantity into the teams.seats_purchased column
+ * for the team owned by userId. If the user owns multiple teams (rare),
+ * updates all of them — a team plan subscription covers the account.
+ */
+async function syncTeamSeats(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  quantity: number
+): Promise<void> {
+  const seats = Math.max(1, quantity);   // always at least 1 (the owner)
+  const { error } = await supabase
+    .from('teams')
+    .update({ seats_purchased: seats })
+    .eq('owner_id', userId);
+
+  if (error) {
+    console.error(`[stripe-webhook] Failed to sync team seats for ${userId}:`, error.message);
+  } else {
+    console.log(`[stripe-webhook] Team seats → ${seats} for owner ${userId}`);
   }
 }

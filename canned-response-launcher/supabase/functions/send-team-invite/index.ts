@@ -56,13 +56,42 @@ Deno.serve(async (req: Request) => {
     // ── Verify caller owns the team ───────────────────────────────
     const { data: team, error: teamErr } = await supabase
       .from('teams')
-      .select('id, name')
+      .select('id, name, seats_purchased')
       .eq('id', team_id)
       .eq('owner_id', user.id)
       .single();
 
     if (teamErr || !team) {
       return jsonError('Team not found or you are not the owner', 403);
+    }
+
+    // ── Seat capacity check ───────────────────────────────────────
+    // Count owner (1) + accepted members + pending invites that haven't
+    // expired or been revoked. Pending invites hold a reserved seat so
+    // the owner can't accidentally over-invite.
+    const [{ count: memberCount }, { count: pendingCount }] = await Promise.all([
+      supabase
+        .from('team_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('team_id', team_id),
+      supabase
+        .from('team_invites')
+        .select('*', { count: 'exact', head: true })
+        .eq('team_id', team_id)
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString()),
+    ]);
+
+    const seatsPurchased = team.seats_purchased ?? 1;
+    // seats_used = 1 (owner) + accepted members + pending (reserved)
+    const seatsUsed = 1 + (memberCount ?? 0) + (pendingCount ?? 0);
+
+    if (seatsUsed >= seatsPurchased) {
+      return jsonError(
+        `Your team has reached its seat limit (${seatsPurchased} seat${seatsPurchased !== 1 ? 's' : ''}). ` +
+        `Purchase additional seats from the Billing tab to invite more members.`,
+        403
+      );
     }
 
     // ── Create (or refresh) the invite ───────────────────────────

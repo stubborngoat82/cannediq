@@ -117,27 +117,47 @@ const CRLStorage = (() => {
     aiApiKey: '',
   };
 
+  // ── Context guard ───────────────────────────────────────────────────────────
+  // chrome.storage calls throw "Extension context invalidated" when the content
+  // script is orphaned after an extension reload. Detect it early and return
+  // safe fallback values instead of crashing.
+
+  function _chromeContextAlive() {
+    try { return !!chrome?.runtime?.id; } catch { return false; }
+  }
+
   // ── Read / Write ────────────────────────────────────────────────────────────
 
   function read() {
     return new Promise((resolve) => {
-      chrome.storage.local.get([KEY, 'categories'], (raw) => {
-        let data = raw[KEY];
+      if (!_chromeContextAlive()) return resolve(migrate(null)); // orphaned — return defaults
 
-        if (!data || data.schemaVersion !== SCHEMA_VERSION) {
-          // Migrate from v1 or initialise fresh
-          data = migrate(raw.categories ?? null);
-          chrome.storage.local.set({ [KEY]: data });
-        }
+      try {
+        chrome.storage.local.get([KEY, 'categories'], (raw) => {
+          if (chrome.runtime.lastError) return resolve(migrate(null));
+          let data = raw[KEY];
 
-        resolve(data);
-      });
+          if (!data || data.schemaVersion !== SCHEMA_VERSION) {
+            // Migrate from v1 or initialise fresh
+            data = migrate(raw.categories ?? null);
+            try { chrome.storage.local.set({ [KEY]: data }); } catch {}
+          }
+
+          resolve(data);
+        });
+      } catch { resolve(migrate(null)); }
     });
   }
 
   function write(data) {
     return new Promise((resolve) => {
-      chrome.storage.local.set({ [KEY]: data }, resolve);
+      if (!_chromeContextAlive()) return resolve();
+      try {
+        chrome.storage.local.set({ [KEY]: data }, () => {
+          if (chrome.runtime.lastError) { /* swallow */ }
+          resolve();
+        });
+      } catch { resolve(); }
     });
   }
 

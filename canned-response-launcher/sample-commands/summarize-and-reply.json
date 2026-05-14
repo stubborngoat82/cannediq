@@ -1,0 +1,49 @@
+{
+  "commands": [
+    {
+      "id": "cmd_summarize_reply",
+      "name": "Summarize & Draft Reply",
+      "description": "Summarizes the highlighted text and drafts a professional reply to it",
+      "stackId": "general",
+      "commandType": "ai",
+      "template": "",
+      "aiEnabled": true,
+      "aiPrompt": "You are a professional communication assistant.\n\nHere is a message or excerpt the user has highlighted:\n\n---\n{{selectedText}}\n---\n\nDo two things:\n1. In one or two sentences, summarize what the highlighted text is about.\n2. Draft a clear, professional reply to it.\n\nFormat your response exactly like this:\n**Summary:** <your one- or two-sentence summary>\n\n**Draft Reply:**\n<your reply here>\n\nDo not add any other commentary.",
+      "triggers": [
+        { "type": "slash", "value": "/reply" },
+        { "type": "text",  "value": ";;reply" }
+      ],
+      "variables": [],
+      "conditions": [],
+      "actions": [{ "type": "insert_text" }],
+      "favorite": false,
+      "usageCount": 0
+    },
+    {
+      "id": "cmd_summarize_reply_tone",
+      "name": "Summarize & Reply (choose tone)",
+      "description": "Summarizes the selection and drafts a reply in a tone you pick",
+      "stackId": "general",
+      "commandType": "ai",
+      "template": "",
+      "aiEnabled": true,
+      "aiPrompt": "You are a professional communication assistant.\n\nHere is a message or excerpt the user has highlighted:\n\n---\n{{selectedText}}\n---\n\nDo two things:\n1. In one sentence, summarize what the highlighted text is about.\n2. Draft a reply in a {{tone}} tone.\n\nFormat your response exactly like this:\n**Summary:** <your one-sentence summary>\n\n**Draft Reply:**\n<your reply here>\n\nDo not add any other commentary.",
+      "triggers": [
+        { "type": "slash", "value": "/replytone" }
+      ],
+      "variables": [
+        {
+          "key": "tone",
+          "label": "Tone",
+          "type": "dropdown",
+          "required": true,
+          "options": ["Professional", "Friendly", "Direct", "Empathetic", "Concise", "Formal"]
+        }
+      ],
+      "conditions": [],
+      "actions": [{ "type": "insert_text" }],
+      "favorite": false,
+      "usageCount": 0
+    }
+  ]
+}

@@ -99,8 +99,9 @@ Deno.serve(async (req) => {
 
   // ── Determine success/cancel URLs ─────────────────────────────────────────────
   // Stripe requires HTTPS URLs — chrome-extension:// is not allowed.
-  // Redirect to the web app; the webhook updates the plan in the background.
-  // Include the extension ID so the success page can link directly back into it.
+  // Success goes to our own billing-success Edge Function (always available,
+  // no external website required). Cancel goes to APP_URL/pricing if configured,
+  // otherwise falls back to the Edge Function root.
   const extParam   = EXT_ID ? `&ext=${EXT_ID}` : '';
   const successUrl = `${APP_URL}/billing/success?plan=${plan}${extParam}`;
   const cancelUrl  = `${APP_URL}/pricing`;
