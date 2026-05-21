@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — cannedIQ</title>
+  <meta name="description" content="cannedIQ Privacy Policy — how we collect, use, and protect your information." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy:   '#0F172A',
+            card:   '#111827',
+            border: '#1E293B',
+            blue:   '#3B82F6',
+            violet: '#8B5CF6',
+            muted:  '#94A3B8',
+          },
+          fontFamily: { sans: ['-apple-system','BlinkMacSystemFont','Segoe UI','system-ui','sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0F172A; color: #F8FAFC; }
+    .grad { background: linear-gradient(135deg,#3B82F6 0%,#8B5CF6 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .prose-dark h2 { font-size: 1.2rem; font-weight: 700; color: #F8FAFC; margin-top: 2.5rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1E293B; }
+    .prose-dark h3 { font-size: 1rem; font-weight: 600; color: #E2E8F0; margin-top: 1.5rem; margin-bottom: 0.4rem; }
+    .prose-dark p  { color: #94A3B8; line-height: 1.75; margin-bottom: 1rem; font-size: 0.9375rem; }
+    .prose-dark ul { color: #94A3B8; line-height: 1.75; margin-bottom: 1rem; padding-left: 1.25rem; list-style: disc; font-size: 0.9375rem; }
+    .prose-dark ul li { margin-bottom: 0.35rem; }
+    .prose-dark a  { color: #60A5FA; text-decoration: underline; text-underline-offset: 3px; }
+    .prose-dark a:hover { color: #93C5FD; }
+    .info-box { background: #111827; border: 1px solid #1E293B; border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+    .info-box p { margin-bottom: 0; }
+    .provider-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin: 1.25rem 0; }
+    @media (max-width: 640px) { .provider-grid { grid-template-columns: 1fr; } }
+    .provider-card { background: #111827; border: 1px solid #1E293B; border-radius: 10px; padding: 1rem; }
+    .provider-card h4 { font-size: 0.875rem; font-weight: 700; color: #E2E8F0; margin-bottom: 0.25rem; }
+    .provider-card p  { font-size: 0.8125rem; color: #64748B; margin: 0; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+    <div class="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm">⚡</div>
+        <span class="font-bold text-lg tracking-tight">cannedIQ</span>
+      </a>
+      <div class="flex items-center gap-6 text-sm text-slate-400">
+        <a href="/terms" class="hover:text-white transition-colors">Terms</a>
+        <a href="/pricing" class="hover:text-white transition-colors">Pricing</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <div class="max-w-4xl mx-auto px-6 pt-16 pb-4">
+    <p class="text-sm font-semibold text-blue-400 uppercase tracking-widest mb-3">Legal</p>
+    <h1 class="text-4xl font-extrabold tracking-tight mb-4">
+      Privacy <span class="grad">Policy</span>
+    </h1>
+    <p class="text-slate-400 text-base">
+      Effective date: <strong class="text-slate-300">May 20, 2025</strong> &nbsp;·&nbsp;
+      Last updated: <strong class="text-slate-300">May 20, 2025</strong>
+    </p>
+  </div>
+
+  <!-- Content -->
+  <main class="max-w-4xl mx-auto px-6 pb-24 prose-dark">
+
+    <div class="info-box">
+      <p>cannedIQ is operated by <strong class="text-slate-200">AH Push It LLC</strong> ("we", "us", "our"). This policy explains what data we collect when you use the cannedIQ Chrome Extension and website (<a href="https://cannediq.com">cannediq.com</a>), how we use it, and your rights regarding it. We do not sell your personal data.</p>
+    </div>
+
+    <!-- 1 -->
+    <h2>1. Information We Collect</h2>
+
+    <h3>Account &amp; Profile Information</h3>
+    <p>When you create an account or complete onboarding, we collect:</p>
+    <ul>
+      <li>Email address (required for authentication)</li>
+      <li>Full name (optional, provided by you)</li>
+      <li>Job title, company name, and company size (optional, collected at signup)</li>
+      <li>Use case and referral source (optional, collected at signup)</li>
+      <li>Phone number and billing address (collected by Stripe at checkout)</li>
+    </ul>
+
+    <h3>Payment &amp; Billing Information</h3>
+    <p>Payment details — including credit card numbers, billing address, and bank account information — are collected and processed directly by <strong class="text-slate-200">Stripe, Inc.</strong> We never see or store your raw payment credentials. We do store your Stripe Customer ID and subscription status so we can manage your plan.</p>
+
+    <h3>Usage Data</h3>
+    <p>We collect limited usage data to operate the service:</p>
+    <ul>
+      <li>Number of AI commands used per month (for quota enforcement)</li>
+      <li>Last sign-in timestamp (for team management features)</li>
+      <li>The commands, stacks, and categories you create and store in cannedIQ</li>
+    </ul>
+    <p>We do not log the content of web pages you visit, the text fields you type into, or the specific responses you insert. Your canned responses are stored in your account to sync across devices, but are not read or analyzed by us.</p>
+
+    <h3>Extension Permissions</h3>
+    <p>The cannedIQ Chrome Extension requests the following permissions:</p>
+    <ul>
+      <li><strong class="text-slate-300">activeTab</strong> — to detect the active text field and insert your selected response</li>
+      <li><strong class="text-slate-300">storage</strong> — to cache your commands locally for instant access</li>
+      <li><strong class="text-slate-300">contextMenus</strong> — to offer right-click shortcuts for inserting responses</li>
+    </ul>
+    <p>The extension does not read the content of pages you browse, capture screenshots, or transmit browsing history.</p>
+
+    <!-- 2 -->
+    <h2>2. How We Use Your Information</h2>
+    <ul>
+      <li>To create and maintain your account</li>
+      <li>To process payments and manage your subscription</li>
+      <li>To enforce plan limits (free vs. Pro vs. Team)</li>
+      <li>To provide team management features (if you are a team owner or member)</li>
+      <li>To send transactional emails — account provisioning, password resets, billing receipts</li>
+      <li>To improve the service through aggregated, anonymized analytics</li>
+      <li>To respond to support requests</li>
+    </ul>
+    <p>We do not use your data for advertising, and we do not share your data with third parties for their marketing purposes.</p>
+
+    <!-- 3 -->
+    <h2>3. Third-Party Service Providers</h2>
+    <p>We use the following sub-processors to operate cannedIQ. Each is bound by their own data processing agreements and privacy policies.</p>
+
+    <div class="provider-grid">
+      <div class="provider-card">
+        <h4>Stripe</h4>
+        <p>Payment processing, subscription billing, invoicing, and the customer portal. Stripe stores your payment method and billing address.</p>
+        <p style="margin-top:0.5rem"><a href="https://stripe.com/privacy" target="_blank" rel="noopener">stripe.com/privacy</a></p>
+      </div>
+      <div class="provider-card">
+        <h4>Supabase</h4>
+        <p>Database, authentication, and backend infrastructure. Your account data, commands, and stacks are stored in Supabase (hosted on AWS us-east-1).</p>
+        <p style="margin-top:0.5rem"><a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a></p>
+      </div>
+      <div class="provider-card">
+        <h4>Resend</h4>
+        <p>Transactional email delivery. Used to send account provisioning emails, password resets, and other service notifications.</p>
+        <p style="margin-top:0.5rem"><a href="https://resend.com/privacy" target="_blank" rel="noopener">resend.com/privacy</a></p>
+      </div>
+    </div>
+
+    <p>We may also use Google OAuth as an optional sign-in method, subject to <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</p>
+
+    <!-- 4 -->
+    <h2>4. Data Retention</h2>
+    <p>We retain your account data for as long as your account is active. If you delete your account, we will delete your personal data within 30 days, except where we are required to retain it for legal or financial record-keeping purposes (e.g., billing records are retained for 7 years as required by law).</p>
+    <p>Your Stripe billing records are retained by Stripe according to their policies and applicable financial regulations.</p>
+
+    <!-- 5 -->
+    <h2>5. Data Security</h2>
+    <p>We take reasonable technical and organizational measures to protect your data:</p>
+    <ul>
+      <li>All data is transmitted over TLS/HTTPS</li>
+      <li>Passwords are hashed and never stored in plaintext</li>
+      <li>Database access is governed by Row-Level Security policies so users can only access their own data</li>
+      <li>Payment data never touches our servers — it goes directly to Stripe</li>
+    </ul>
+    <p>No method of transmission or storage is 100% secure. If you discover a security issue, please contact us at <a href="mailto:security@cannediq.com">security@cannediq.com</a>.</p>
+
+    <!-- 6 -->
+    <h2>6. Team Accounts</h2>
+    <p>If you use cannedIQ as part of a team, your team owner has the ability to:</p>
+    <ul>
+      <li>Provision your account (create it on your behalf)</li>
+      <li>See your name, email, and last active date within the team dashboard</li>
+      <li>Remove you from the team</li>
+      <li>Reset your temporary password (if your account was provisioned by them)</li>
+    </ul>
+    <p>Team owners cannot see your personal canned responses, only responses shared to the team library.</p>
+
+    <!-- 7 -->
+    <h2>7. Cookies &amp; Local Storage</h2>
+    <p>The cannedIQ website uses minimal cookies — only those necessary for authentication sessions. We do not use tracking or advertising cookies. The Chrome Extension uses <code class="bg-slate-800 px-1.5 py-0.5 rounded text-sm text-slate-300">chrome.storage.local</code> to cache your commands and session data on your device; this data does not leave your device except to sync with your account.</p>
+
+    <!-- 8 -->
+    <h2>8. Your Rights</h2>
+    <p>Depending on your location, you may have the following rights regarding your personal data:</p>
+    <ul>
+      <li><strong class="text-slate-300">Access</strong> — request a copy of the data we hold about you</li>
+      <li><strong class="text-slate-300">Correction</strong> — request correction of inaccurate data</li>
+      <li><strong class="text-slate-300">Deletion</strong> — request deletion of your account and associated data</li>
+      <li><strong class="text-slate-300">Portability</strong> — export your commands and stacks as a JSON file at any time from the Settings tab</li>
+      <li><strong class="text-slate-300">Objection</strong> — object to certain processing of your data</li>
+    </ul>
+    <p>To exercise these rights, contact us at <a href="mailto:privacy@cannediq.com">privacy@cannediq.com</a>. We will respond within 30 days.</p>
+
+    <!-- 9 -->
+    <h2>9. Children's Privacy</h2>
+    <p>cannedIQ is not directed at children under the age of 13. We do not knowingly collect personal information from children. If you believe a child has provided us personal information, please contact us and we will delete it.</p>
+
+    <!-- 10 -->
+    <h2>10. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. When we make material changes, we will update the effective date at the top of this page and, where appropriate, notify you by email. Continued use of the service after changes constitutes acceptance of the updated policy.</p>
+
+    <!-- 11 -->
+    <h2>11. Contact</h2>
+    <p>If you have questions about this policy or your data:</p>
+    <div class="info-box">
+      <p><strong class="text-slate-200">AH Push It LLC</strong><br>
+      Email: <a href="mailto:privacy@cannediq.com">privacy@cannediq.com</a><br>
+      Website: <a href="https://cannediq.com">cannediq.com</a></p>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 py-10">
+    <div class="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+      <span>© 2025 AH Push It LLC. All rights reserved.</span>
+      <div class="flex gap-6">
+        <a href="/privacy" class="text-slate-400 hover:text-white transition-colors">Privacy Policy</a>
+        <a href="/terms"   class="hover:text-white transition-colors">Terms of Service</a>
+        <a href="/pricing" class="hover:text-white transition-colors">Pricing</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

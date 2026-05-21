@@ -53,80 +53,38 @@ Deno.serve(async (req: Request) => {
     const { team_id, email } = await req.json() as { team_id: string; email: string };
     if (!team_id || !email) return jsonError('team_id and email are required', 400);
 
-    // ── Verify caller owns the team ───────────────────────────────
-    const { data: team, error: teamErr } = await supabase
+    // ── Verify caller is team owner or admin, create invite atomically ─
+    // The create_team_invite RPC:
+    //   1. Checks caller is owner or has admin role
+    //   2. Revokes any existing pending invite for this email (resend-safe)
+    //   3. Locks the team row and verifies seat capacity
+    //   4. Inserts the invite — all in one transaction (no race condition)
+    const { data: inviteRows, error: rpcErr } = await supabase
+      .rpc('create_team_invite', { p_team_id: team_id, p_email: email });
+
+    if (rpcErr) {
+      if (rpcErr.code === 'P0401') return jsonError('Team not found or insufficient permissions', 403);
+      if (rpcErr.code === 'P0402') {
+        return jsonError(
+          'Your team has reached its seat limit. ' +
+          'Purchase additional seats from the Billing tab to invite more members.',
+          403
+        );
+      }
+      throw new Error(rpcErr.message);
+    }
+
+    const invite = Array.isArray(inviteRows) ? inviteRows[0] : inviteRows;
+    if (!invite?.invite_id) throw new Error('Failed to create invite');
+
+    // Fetch team name for the invite email
+    const { data: team } = await supabase
       .from('teams')
-      .select('id, name, seats_purchased')
+      .select('name')
       .eq('id', team_id)
-      .eq('owner_id', user.id)
       .single();
-
-    if (teamErr || !team) {
-      return jsonError('Team not found or you are not the owner', 403);
-    }
-
-    // ── Seat capacity check ───────────────────────────────────────
-    // Count owner (1) + accepted members + pending invites that haven't
-    // expired or been revoked. Pending invites hold a reserved seat so
-    // the owner can't accidentally over-invite.
-    const [{ count: memberCount }, { count: pendingCount }] = await Promise.all([
-      supabase
-        .from('team_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('team_id', team_id),
-      supabase
-        .from('team_invites')
-        .select('*', { count: 'exact', head: true })
-        .eq('team_id', team_id)
-        .eq('status', 'pending')
-        .gt('expires_at', new Date().toISOString()),
-    ]);
-
-    const seatsPurchased = team.seats_purchased ?? 1;
-    // seats_used = 1 (owner) + accepted members + pending (reserved)
-    const seatsUsed = 1 + (memberCount ?? 0) + (pendingCount ?? 0);
-
-    if (seatsUsed >= seatsPurchased) {
-      return jsonError(
-        `Your team has reached its seat limit (${seatsPurchased} seat${seatsPurchased !== 1 ? 's' : ''}). ` +
-        `Purchase additional seats from the Billing tab to invite more members.`,
-        403
-      );
-    }
-
-    // ── Create (or refresh) the invite ───────────────────────────
-    // Upsert by team_id + email: if a pending invite already exists,
-    // reset the token and expiry so the link is fresh.
-    const newToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-    // Mark any existing pending invite for this team+email as revoked first
-    await supabase
-      .from('team_invites')
-      .update({ status: 'revoked' })
-      .eq('team_id', team_id)
-      .eq('email', email)
-      .eq('status', 'pending');
-
-    // Insert fresh invite
-    const { data: invite, error: insertErr } = await supabase
-      .from('team_invites')
-      .insert({
-        team_id,
-        invited_by: user.id,
-        email,
-        token:      newToken,
-        expires_at: expiresAt,
-      })
-      .select('id, token')
-      .single();
-
-    if (insertErr || !invite) {
-      throw new Error(insertErr?.message ?? 'Failed to create invite');
-    }
 
     // ── Build invite link ─────────────────────────────────────────
-    // Points to the accept-team-invite Edge Function which serves the HTML page
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const link = `${supabaseUrl}/functions/v1/accept-team-invite?token=${invite.token}`;
 
@@ -144,9 +102,9 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           from:    fromEmail,
           to:      [email],
-          subject: `You're invited to join "${team.name}" on Canned Response Launcher`,
-          html:    buildEmailHTML(team.name, user.email ?? 'Your team owner', link),
-          text:    buildEmailText(team.name, user.email ?? 'Your team owner', link),
+          subject: `You're invited to join "${team?.name ?? 'a team'}" on Canned Response Launcher`,
+          html:    buildEmailHTML(team?.name ?? 'Your team', user.email ?? 'Your team owner', link),
+          text:    buildEmailText(team?.name ?? 'Your team', user.email ?? 'Your team owner', link),
         }),
       });
 
@@ -160,7 +118,7 @@ Deno.serve(async (req: Request) => {
       console.log(`[send-team-invite] No RESEND_API_KEY set. Invite link: ${link}`);
     }
 
-    return jsonOk({ invite_id: invite.id, link });
+    return jsonOk({ invite_id: invite.invite_id, link });
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

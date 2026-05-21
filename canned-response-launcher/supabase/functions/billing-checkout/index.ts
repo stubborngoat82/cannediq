@@ -74,6 +74,18 @@ Deno.serve(async (req) => {
   if (!PRICE_IDS[plan]) return json({ error: `Unknown plan: ${plan}` }, 400);
   const priceId = PRICE_IDS[plan];
 
+  // For team plan: fetch the user's primary team so the webhook can scope
+  // seat updates to that specific team (avoids updating all owned teams).
+  let teamId: string | null = null;
+  if (plan === 'team') {
+    const { data: teams } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('owner_id', user.id)
+      .limit(1);
+    teamId = teams?.[0]?.id ?? null;
+  }
+
   // ── Get or create Stripe customer ─────────────────────────────────────────────
   const { data: profile } = await supabase
     .from('profiles')
@@ -120,12 +132,38 @@ Deno.serve(async (req) => {
       metadata: {
         supabase_user_id: user.id,
         plan,
+        ...(teamId ? { team_id: teamId } : {}),
       },
     },
 
+    // ── Contact & billing info collection ─────────────────────────────────────
+    // Always collect full billing address (required, not auto) so we have it
+    // for invoices, tax, and records regardless of payment method.
+    billing_address_collection: 'required',
+
+    // Collect phone number — useful for receipts, support, and enterprise deals.
+    phone_number_collection: { enabled: true },
+
+    // Save address + name back to the Stripe Customer record so future
+    // checkouts and the portal are pre-filled.
+    // Note: 'phone' is NOT a valid customer_update key — phone is collected
+    // via phone_number_collection but saved to the customer automatically.
+    customer_update: {
+      address: 'auto',
+      name:    'auto',
+    },
+
     allow_promotion_codes: true,
-    billing_address_collection: 'auto',
-    customer_update: { address: 'auto' },
+
+    // Custom fields: company name (optional) — shown on invoice / receipt.
+    custom_fields: [
+      {
+        key:      'company',
+        label:    { type: 'custom', custom: 'Company name (optional)' },
+        type:     'text',
+        optional: true,
+      },
+    ],
 
     success_url: successUrl + (successUrl.includes('?') ? '&session_id={CHECKOUT_SESSION_ID}' : '?session_id={CHECKOUT_SESSION_ID}'),
     cancel_url:  cancelUrl,

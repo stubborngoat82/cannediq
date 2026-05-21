@@ -90,7 +90,13 @@ Log in to your AHPushIt LLC Stripe account at https://dashboard.stripe.com
 ## 4. Webhook Configuration
 
 1. **Developers → Webhooks → Add endpoint**
-2. Endpoint URL: `https://YOUR_SUPABASE_PROJECT.supabase.co/functions/v1/stripe-webhook`
+2. Endpoint URL:
+   ```
+   https://YOUR_SUPABASE_PROJECT.supabase.co/functions/v1/stripe-webhook
+   ```
+   Replace `YOUR_SUPABASE_PROJECT` with your actual project ref (e.g., `abcxyzabcxyz`).
+   Find it at: **Supabase Dashboard → Settings → API → Project URL**
+
 3. Select events to listen to:
    - `checkout.session.completed`
    - `customer.subscription.created`
@@ -98,7 +104,53 @@ Log in to your AHPushIt LLC Stripe account at https://dashboard.stripe.com
    - `customer.subscription.deleted`
    - `invoice.payment_succeeded`
    - `invoice.payment_failed`
-4. Add endpoint → copy the **Webhook signing secret** (`whsec_...`)
+
+4. Click **Add endpoint**
+
+5. On the endpoint detail page, click **Reveal** next to **Signing secret** → copy the `whsec_...` value
+
+6. Save it as `STRIPE_WEBHOOK_SECRET` in Supabase (step 5 below)
+
+> **Why this matters for team seats:** Stripe calls this URL after every payment. The webhook reads
+> the subscription's `quantity` field (which equals the number of seats you purchased in Checkout)
+> and writes it to `teams.seats_purchased` in your database. If the webhook isn't registered or the
+> signing secret doesn't match, the seat count stays at the default of 1.
+
+### 4a. Verify the webhook is working
+
+After setup, do a test purchase and then check the webhook logs:
+
+1. **Stripe Dashboard → Developers → Webhooks → [your endpoint]**
+2. Look at **Recent deliveries** — each event should show status `200`
+3. If you see `400` errors, the signing secret is wrong — re-copy `whsec_...` and update the secret in Supabase
+4. If you see no deliveries at all, the endpoint URL is wrong
+
+### 4b. How seat count gets into your database
+
+The flow is:
+```
+User selects 5 seats → Checkout created with quantity=5 (billing-checkout function)
+       ↓
+Stripe processes payment → fires checkout.session.completed
+       ↓
+stripe-webhook reads sub.items.data[0].quantity (= 5)
+       ↓
+UPDATE teams SET seats_purchased = 5 WHERE owner_id = user_id
+```
+
+The webhook needs `supabase_user_id` in the subscription metadata to know which user paid.
+This is set automatically by the `billing-checkout` Edge Function — no manual action needed.
+
+### 4c. Manual seat sync (if webhook missed the event)
+
+Even without the webhook, seats now sync automatically: when you return from the Stripe Checkout
+page, the extension sends a `REFRESH_PLAN` signal which calls the `sync-billing` Edge Function.
+This pulls the seat count directly from Stripe and writes it to your database.
+
+If seats are still wrong after returning to the extension:
+1. Open the extension → Billing tab → wait 5 seconds for the refresh to complete
+2. Close and reopen the extension
+3. Check the Teams tab — seat count should now reflect your purchase
 
 ---
 
@@ -147,7 +199,20 @@ supabase secrets set CHROME_EXTENSION_ID=your_extension_id
 supabase functions deploy billing-checkout
 supabase functions deploy billing-portal
 supabase functions deploy stripe-webhook
-supabase functions deploy ai-generate     # Already deployed — re-deploy if updated
+supabase functions deploy sync-billing        # Syncs seat count from Stripe on demand
+supabase functions deploy ai-generate         # Already deployed — re-deploy if updated
+
+# Team provisioning (deploy without JWT verification)
+supabase functions deploy provision-team-member
+supabase functions deploy reset-member-password
+supabase functions deploy send-team-invite
+```
+
+> `sync-billing` does NOT need `--no-verify-jwt` — it requires a valid user session.
+> `stripe-webhook` should be deployed with `--no-verify-jwt` (Stripe has no JWT).
+
+```bash
+supabase functions deploy stripe-webhook --no-verify-jwt
 ```
 
 ---

@@ -69,17 +69,33 @@ Deno.serve(async (req: Request) => {
       return jsonError('Invalid email address', 400);
     }
 
-    // ── Verify caller owns the team ───────────────────────────────
-    const { data: team, error: teamErr } = await supabase
-      .from('teams')
-      .select('id, name, seats_purchased')
-      .eq('id', team_id)
-      .eq('owner_id', caller.id)
-      .single();
+    // ── Verify caller is team owner or admin ──────────────────────
+    const [{ data: ownerData }, { data: adminData }] = await Promise.all([
+      supabase
+        .from('teams')
+        .select('id, name, seats_purchased')
+        .eq('id', team_id)
+        .eq('owner_id', caller.id)
+        .maybeSingle(),
+      supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('team_id', team_id)
+        .eq('user_id', caller.id)
+        .in('role', ['admin', 'owner'])
+        .maybeSingle(),
+    ]);
 
-    if (teamErr || !team) {
-      return jsonError('Team not found or you are not the owner', 403);
+    if (!ownerData && !adminData) {
+      return jsonError('Team not found or insufficient permissions', 403);
     }
+
+    // Fetch full team record when caller is an admin (not the owner)
+    const team = ownerData ?? (
+      await supabase.from('teams').select('id, name, seats_purchased').eq('id', team_id).single()
+    ).data;
+
+    if (!team) return jsonError('Team not found', 404);
 
     // ── Seat check ────────────────────────────────────────────────
     const { count: memberCount } = await supabase
@@ -106,8 +122,12 @@ Deno.serve(async (req: Request) => {
     let isNew = false;
 
     if (existingUser) {
-      // Re-use existing account — just enroll them in this team
+      // Re-use existing account — enroll them in this team and upgrade their tier
       memberId = existingUser.id;
+      await supabase
+        .from('profiles')
+        .update({ tier: 'team' })
+        .eq('id', memberId);
     } else {
       // Create a new account with a generated temporary password
       tempPassword = generateTempPassword();
@@ -127,13 +147,14 @@ Deno.serve(async (req: Request) => {
 
       memberId = created.user.id;
 
-      // Set must_change_password on the new profile row.
+      // Set tier + must_change_password on the new profile row.
       // Supabase auto-inserts a profiles row via DB trigger; we update it.
       // Retry once — trigger may not have fired yet.
       for (let attempt = 0; attempt < 2; attempt++) {
         const { error: profileErr } = await supabase
           .from('profiles')
           .update({
+            tier:                 'team',
             must_change_password: true,
             provisioned_team_id:  team_id,
             full_name:            full_name ?? null,

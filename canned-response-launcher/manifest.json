@@ -59,9 +59,11 @@
     "service_worker": "background.js"
   },
   "options_page": "options.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  },
   "action": {
-    "default_title": "CRL — Command Launcher",
-    "default_popup": ""
+    "default_title": "cannedIQ — Command Launcher"
   },
   "icons": {
     "16": "icons/icon16.png",

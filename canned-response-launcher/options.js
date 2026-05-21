@@ -88,6 +88,9 @@
       tier: currentProfile?.tier ?? currentUser?.tier ?? 'free',
     };
     renderAccountWidget(effectiveUser);
+
+    // Immediately pull team commands so members don't wait up to 30 min for the background alarm
+    chrome.runtime.sendMessage({ type: 'SYNC_TEAM_COMMANDS' }, () => {});
     document.getElementById('auth-panel').hidden = true;
     document.getElementById('tab-nav').hidden    = false;
 
@@ -269,22 +272,36 @@
     const activeTypeBtn = document.querySelector('.ob-type-btn--active');
     const userType = activeTypeBtn?.dataset.type ?? 'personal';
 
-    // Always mark onboarded so the form doesn't reappear
+    // Close the modal immediately so the user isn't blocked
+    if (modal) modal.hidden = true;
+
+    // Stamp onboarded_at in memory right away so re-entering options
+    // doesn't re-show the modal during this session
     if (currentProfile) currentProfile.onboarded_at = new Date().toISOString();
 
+    // Write onboarded_at to the DB via a direct PATCH — this is the flag
+    // that prevents the modal from appearing on future sessions.
+    // Done separately from saveDemographics so it never gets swallowed.
     try {
-      await Api.saveDemographics(skip ? {} : {
-        fullName:       document.getElementById('ob-full-name')?.value.trim()  || null,
-        userType,
-        jobTitle:       document.getElementById('ob-job-title')?.value.trim()  || null,
-        companyName:    document.getElementById('ob-company')?.value.trim()    || null,
-        companySize:    document.getElementById('ob-company-size')?.value      || null,
-        useCase:        document.getElementById('ob-use-case')?.value          || null,
-        referralSource: document.getElementById('ob-referral')?.value          || null,
-      });
-    } catch { /* Non-blocking */ }
+      await Api.markOnboarded();
+    } catch (err) {
+      DEBUG && console.warn('[onboarding] markOnboarded failed:', err);
+    }
 
-    if (modal) modal.hidden = true;
+    // Save richer demographic data — best-effort, non-blocking
+    if (!skip) {
+      try {
+        await Api.saveDemographics({
+          fullName:       document.getElementById('ob-full-name')?.value.trim()  || null,
+          userType,
+          jobTitle:       document.getElementById('ob-job-title')?.value.trim()  || null,
+          companyName:    document.getElementById('ob-company')?.value.trim()    || null,
+          companySize:    document.getElementById('ob-company-size')?.value      || null,
+          useCase:        document.getElementById('ob-use-case')?.value          || null,
+          referralSource: document.getElementById('ob-referral')?.value          || null,
+        });
+      } catch { /* Non-blocking */ }
+    }
   }
 
   // ── Upgrade survey ─────────────────────────────────────────────────────────────
@@ -873,8 +890,10 @@
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span class="team-role-badge ${team.role === 'owner' ? '' : 'member'}">${team.role}</span>
+            <button class="btn btn-ghost btn-sm btn-manage" data-id="${team.id}">
+              ${isExpanded ? 'Collapse' : (team.isOwner || team.role === 'admin') ? 'Manage' : 'View'}
+            </button>
             ${team.isOwner ? `
-              <button class="btn btn-ghost btn-sm btn-manage" data-id="${team.id}">${isExpanded ? 'Collapse' : 'Manage'}</button>
               <button class="btn btn-danger btn-sm btn-delete-team" data-id="${team.id}">Delete</button>
             ` : `
               <button class="btn btn-ghost btn-sm btn-leave-team" data-id="${team.id}">Leave</button>
@@ -897,10 +916,12 @@
   }
 
   function renderTeamDetailHTML(team) {
+    const canManage = team.isOwner || team.role === 'admin';
     return `
       <div class="team-members-section" id="team-detail-${team.id}">
 
-        <!-- Seat usage bar -->
+        ${canManage ? `
+        <!-- Seat usage bar (admin/owner only) -->
         <div id="seat-usage-${team.id}" class="team-seat-usage">
           <span style="color:#9ca3af;font-style:italic;font-size:12px">Loading seat info…</span>
         </div>
@@ -911,9 +932,16 @@
           <span>Email</span>
           <span>Last Active</span>
           <span>Status</span>
+          <span>Role</span>
           <span></span>
         </div>
         <ul class="member-list member-list--table" id="member-list-${team.id}">
+          <li class="member-item" style="color:#9ca3af;font-style:italic">Loading…</li>
+        </ul>
+
+        <!-- Pending invites -->
+        <div class="team-members-title" style="margin-top:20px">Pending Invites</div>
+        <ul class="member-list member-list--table" id="invite-list-${team.id}">
           <li class="member-item" style="color:#9ca3af;font-style:italic">Loading…</li>
         </ul>
 
@@ -937,6 +965,11 @@
           </ul>
           <button class="btn btn-ghost btn-sm btn-add-team-cat" data-team-id="${team.id}" style="margin-top:6px">+ Add Category</button>
         </div>
+        ` : `
+        <!-- Member view — shared library summary -->
+        <div class="team-members-title">Shared Library</div>
+        <div id="member-library-${team.id}" style="padding:8px 0;font-size:13px;color:#9ca3af;font-style:italic">Loading…</div>
+        `}
 
       </div>`;
   }
@@ -1004,11 +1037,37 @@
   }
 
   async function refreshExpandedTeam(teamId) {
+    const currentTeam = teams.find((t) => t.id === teamId);
+    const callerIsOwner = currentTeam?.isOwner ?? false;
+    const canManage = callerIsOwner || currentTeam?.role === 'admin';
+
+    // Regular members only see a shared-library summary — no admin data needed
+    if (!canManage) {
+      const memberLibEl = document.getElementById(`member-library-${teamId}`);
+      if (memberLibEl) {
+        try {
+          const localData = await CRLStorage.read();
+          const teamCmds = (localData.commands ?? []).filter((c) => c._isTeam && c._teamId === teamId);
+          const teamCats = (await Api.getTeamCategories().catch(() => [])).filter((c) => c.teamId === teamId);
+          const total = teamCmds.length + teamCats.reduce((n, c) => n + c.responses.length, 0);
+          memberLibEl.innerHTML = total > 0
+            ? `<span style="color:#059669">${teamCmds.length} shared command${teamCmds.length !== 1 ? 's' : ''}` +
+              `${teamCats.length > 0 ? ` · ${teamCats.length} category${teamCats.length !== 1 ? 'ies' : 'y'}` : ''} ` +
+              `synced to your extension. Press <kbd>Ctrl+Space</kbd> to launch.</span>`
+            : `<span>No shared content yet. Ask your team admin to share commands.</span>`;
+        } catch {
+          memberLibEl.innerHTML = '<span>Could not load team library.</span>';
+        }
+      }
+      return;
+    }
+
     try {
-      const [memberDetails, teamCats, seatInfo] = await Promise.all([
+      const [memberDetails, teamCats, seatInfo, pendingInvites] = await Promise.all([
         Api.getTeamMemberDetails(teamId).catch(() => null),
         Api.getTeamCategories(),
         Api.getTeamSeatUsage(teamId).catch(() => null),
+        Api.getPendingInvites(teamId).catch(() => []),
       ]);
 
       // Seat usage bar
@@ -1029,11 +1088,20 @@
               : m.lastSignInAt
                 ? '<span class="member-status member-status--active">Active</span>'
                 : '<span class="member-status member-status--never">Never signed in</span>';
+
+            const roleCell = (callerIsOwner && m.role !== 'owner')
+              ? `<select class="member-role-select" data-team-id="${teamId}" data-user-id="${m.userId}">
+                   <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
+                   <option value="admin"  ${m.role === 'admin'  ? 'selected' : ''}>Admin</option>
+                 </select>`
+              : `<span class="member-role-badge">${m.role}</span>`;
+
             return `
               <li class="member-item member-item--row" data-user-id="${m.userId}">
                 <span class="member-email">${escHtml(m.email)}</span>
                 <span class="member-last-active">${relativeTime(m.lastSignInAt)}</span>
                 ${statusBadge}
+                ${roleCell}
                 <span class="member-actions">
                   <button class="btn btn-ghost btn-xs btn-reset-pw"
                     data-team-id="${teamId}" data-user-id="${m.userId}"
@@ -1065,6 +1133,64 @@
               } catch (err) { alert(err.message); }
             });
           });
+
+          memberListEl.querySelectorAll('.member-role-select').forEach((sel) => {
+            sel.addEventListener('change', async () => {
+              const prev = sel.value === 'admin' ? 'member' : 'admin';
+              try {
+                await Api.updateMemberRole(sel.dataset.teamId, sel.dataset.userId, sel.value);
+              } catch (err) {
+                alert(`Could not update role: ${err.message}`);
+                sel.value = prev;
+              }
+            });
+          });
+        }
+      }
+
+      // Pending invites
+      const inviteListEl = document.getElementById(`invite-list-${teamId}`);
+      if (inviteListEl) {
+        if (!pendingInvites || pendingInvites.length === 0) {
+          inviteListEl.innerHTML =
+            '<li class="member-item" style="font-style:italic;color:#9ca3af;grid-column:1/-1">No pending invites.</li>';
+        } else {
+          inviteListEl.innerHTML = pendingInvites.map((inv) => `
+            <li class="member-item member-item--row" data-invite-id="${inv.id}">
+              <span class="member-email">${escHtml(inv.email)}</span>
+              <span class="member-last-active">Sent ${relativeTime(inv.createdAt)}</span>
+              <span class="member-status member-status--pending">Invite pending</span>
+              <span></span>
+              <span class="member-actions">
+                <button class="btn btn-ghost btn-xs btn-resend-invite"
+                  data-team-id="${teamId}" data-email="${escHtml(inv.email)}"
+                  title="Resend invite">Resend</button>
+                <button class="btn btn-danger btn-xs btn-cancel-invite"
+                  data-team-id="${teamId}" data-invite-id="${inv.id}"
+                  data-email="${escHtml(inv.email)}" title="Cancel invite">Cancel</button>
+              </span>
+            </li>`).join('');
+
+          inviteListEl.querySelectorAll('.btn-resend-invite').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              try {
+                btn.disabled = true; btn.textContent = 'Sending…';
+                await Api.sendTeamInvite(btn.dataset.teamId, btn.dataset.email);
+                btn.textContent = 'Sent!';
+                setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend'; }, 3000);
+              } catch (err) { alert(err.message); btn.disabled = false; btn.textContent = 'Resend'; }
+            });
+          });
+
+          inviteListEl.querySelectorAll('.btn-cancel-invite').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              if (!confirm(`Cancel invite for ${btn.dataset.email}?`)) return;
+              try {
+                await Api.cancelTeamInvite(btn.dataset.teamId, btn.dataset.inviteId);
+                await refreshExpandedTeam(teamId);
+              } catch (err) { alert(err.message); }
+            });
+          });
         }
       }
 
@@ -1079,7 +1205,7 @@
               `<span style="color:#9ca3af;font-size:11px">(${c.responses.length} responses)</span></li>`
             ).join('');
       }
-    } catch (err) { console.warn('[CRL] refreshExpandedTeam error', err.message); }
+    } catch (err) { DEBUG && console.warn('[CRL] refreshExpandedTeam error', err.message); }
   }
 
   async function doProvisionMember(teamId, email, fullName, emailInputEl, nameInputEl) {
@@ -1145,9 +1271,45 @@
     const listEl = document.getElementById('team-library-list');
     if (!listEl) return;
     try {
-      const teamCats = await Api.getTeamCategories();
-      if (teamCats.length === 0) { listEl.innerHTML = '<p class="empty-hint">No team categories yet.</p>'; return; }
+      const [teamCats, localData] = await Promise.all([
+        Api.getTeamCategories().catch(() => []),
+        CRLStorage.read(),
+      ]);
+
+      // Group team_commands (primary sharing system) by team
+      const teamCmds = (localData.commands ?? []).filter((c) => c._isTeam);
+      const cmdsByTeam = {};
+      teamCmds.forEach((cmd) => {
+        const key = cmd._teamId ?? 'unknown';
+        if (!cmdsByTeam[key]) cmdsByTeam[key] = { name: cmd._teamName ?? 'Team', count: 0 };
+        cmdsByTeam[key].count++;
+      });
+
+      const hasCommands = Object.keys(cmdsByTeam).length > 0;
+      const hasCats     = teamCats.length > 0;
+
+      if (!hasCommands && !hasCats) {
+        listEl.innerHTML = '<p class="empty-hint">No shared team content yet. Your team admin can share commands via Settings → Import → Team.</p>';
+        return;
+      }
+
       listEl.innerHTML = '';
+
+      // Show per-team command counts (team_commands system)
+      Object.entries(cmdsByTeam).forEach(([, group]) => {
+        const div = document.createElement('div');
+        div.className = 'team-card';
+        div.innerHTML = `
+          <div class="team-card-header">
+            <div>
+              <div class="team-card-name">${escHtml(group.name)}</div>
+              <div class="team-card-meta">${group.count} shared command${group.count !== 1 ? 's' : ''} · synced to your extension</div>
+            </div>
+          </div>`;
+        listEl.appendChild(div);
+      });
+
+      // Also show legacy team categories
       teamCats.forEach((cat) => {
         const div = document.createElement('div');
         div.className = 'team-card';
@@ -1155,7 +1317,7 @@
           <div class="team-card-header">
             <div>
               <div class="team-card-name">${escHtml(cat.name)}</div>
-              <div class="team-card-meta">${escHtml(cat.teamName ?? 'Team')} · ${cat.responses.length} responses</div>
+              <div class="team-card-meta">${escHtml(cat.teamName ?? 'Team')} · ${cat.responses.length} response${cat.responses.length !== 1 ? 's' : ''}</div>
             </div>
           </div>`;
         listEl.appendChild(div);

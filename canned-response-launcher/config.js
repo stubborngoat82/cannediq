@@ -15,3 +15,6 @@ const STRIPE_PORTAL_URL = 'https://billing.stripe.com/p/login/test_fZufZh3xh1jh0
 // Derived endpoints — don't edit these
 const AUTH_URL = `${SUPABASE_URL}/auth/v1`;
 const REST_URL = `${SUPABASE_URL}/rest/v1`;
+
+// Set to true locally to enable verbose logging. Never ship as true.
+const DEBUG = false;

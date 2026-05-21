@@ -52,7 +52,7 @@ const CRLExecutor = (() => {
         await runAction(action, text, { activeField, savedCursor, triggerStart, triggerEnd, context });
         success = true;
       } catch (err) {
-        console.warn('[CRL] Action error:', err);
+        DEBUG && console.warn('[CRL] Action error:', err);
         showToast('Action failed: ' + err.message);
       }
     }
@@ -139,7 +139,7 @@ const CRLExecutor = (() => {
       }
 
       default:
-        console.warn('[CRL] Unknown action type:', action.type);
+        DEBUG && console.warn('[CRL] Unknown action type:', action.type);
     }
   }
 

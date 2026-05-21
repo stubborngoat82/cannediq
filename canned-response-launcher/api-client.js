@@ -84,6 +84,21 @@ const Api = (() => {
   }
 
   /**
+   * Mark the user's profile as onboarded by stamping onboarded_at = now().
+   * Uses a direct PATCH so it succeeds even if the demographics RPC is
+   * unavailable (e.g. migration not yet run).
+   */
+  async function markOnboarded() {
+    const session = await Auth.getValidSession();
+    if (!session) throw new Error('Not authenticated');
+    await apiFetch(`/profiles?id=eq.${encodeURIComponent(session.user.id)}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body:   JSON.stringify({ onboarded_at: new Date().toISOString() }),
+    });
+  }
+
+  /**
    * Save onboarding demographics (called once after the first-login form).
    */
   async function saveDemographics({ fullName, userType, jobTitle, companyName, companySize, useCase, referralSource }) {
@@ -304,14 +319,15 @@ const Api = (() => {
   }
 
   /**
-   * Fetch pending invites for a team (visible to the team owner).
+   * Fetch active pending invites for a team (owner or admin).
+   * Uses the get_team_invites RPC which excludes expired invites.
    * Each entry: { id, email, createdAt, expiresAt }
    */
   async function getPendingInvites(teamId) {
-    const rows = await apiFetch(
-      `/team_invites?team_id=eq.${teamId}&status=eq.pending` +
-      `&select=id,email,created_at,expires_at&order=created_at.desc`
-    );
+    const rows = await apiFetch('/rpc/get_team_invites', {
+      method: 'POST',
+      body: JSON.stringify({ p_team_id: teamId }),
+    });
     return (rows ?? []).map((r) => ({
       id:        r.id,
       email:     r.email,
@@ -321,7 +337,18 @@ const Api = (() => {
   }
 
   /**
-   * Revoke a pending invite before it is accepted.
+   * Cancel a pending invite (owner or admin).
+   */
+  async function cancelTeamInvite(teamId, inviteId) {
+    await apiFetch('/rpc/cancel_team_invite', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ p_team_id: teamId, p_invite_id: inviteId }),
+    });
+  }
+
+  /**
+   * Revoke a pending invite before it is accepted (legacy alias).
    */
   async function revokeInvite(inviteId) {
     const result = await apiFetch('/rpc/revoke_team_invite', {
@@ -330,6 +357,20 @@ const Api = (() => {
     });
     if (result && !result.success) throw new ApiError(result.error, 400, result);
     return result;
+  }
+
+  /**
+   * Update a team member's role. Only the team owner can call this.
+   * @param {string} teamId
+   * @param {string} userId
+   * @param {'admin'|'member'} role
+   */
+  async function updateMemberRole(teamId, userId, role) {
+    await apiFetch('/rpc/update_member_role', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ p_team_id: teamId, p_user_id: userId, p_new_role: role }),
+    });
   }
 
   /**
@@ -570,6 +611,7 @@ const Api = (() => {
   return {
     // Profile
     getProfile,
+    markOnboarded,
     saveDemographics,
     saveUpgradeReason,
 
@@ -592,8 +634,10 @@ const Api = (() => {
     // Team members
     getTeamMembers,
     getTeamMemberDetails,
+    updateMemberRole,
     sendTeamInvite,
     getPendingInvites,
+    cancelTeamInvite,
     revokeInvite,
     removeTeamMember,
 

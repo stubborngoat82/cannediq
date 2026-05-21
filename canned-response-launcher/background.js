@@ -64,8 +64,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'tokenRefresh') {
     try {
       const session = await Auth.getValidSession();
-      if (session) console.log('[CRL] Token refreshed');
-    } catch (err) { console.warn('[CRL] Token refresh failed:', err.message); }
+      if (session) DEBUG && console.log('[CRL] Token refreshed');
+    } catch (err) { DEBUG && console.warn('[CRL] Token refresh failed:', err.message); }
   }
   if (alarm.name === 'rebuildMenus') {
     await rebuildContextMenus();
@@ -95,7 +95,7 @@ async function rebuildContextMenus() {
         contexts: ['editable', 'selection'],
       });
     });
-  } catch (err) { console.warn('[CRL] Context menu rebuild failed:', err.message); }
+  } catch (err) { DEBUG && console.warn('[CRL] Context menu rebuild failed:', err.message); }
 }
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -144,6 +144,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === 'SYNC_TEAM_COMMANDS') {
+    syncTeamCommands()
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
+
   if (msg.type === 'AI_GENERATE') {
     handleAIGenerate(msg)
       .then((text) => sendResponse({ text }))
@@ -166,7 +173,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.type === 'REFRESH_PLAN') {
-    refreshUserPlan()
+    // syncFromStripe=true: pull seat count + tier from Stripe before reading DB
+    // This fires when the user returns from Stripe Checkout / Portal
+    refreshUserPlan({ syncFromStripe: true })
       .then((plan) => sendResponse({ plan }))
       .catch((err) => sendResponse({ error: err.message }));
     return true;
@@ -260,14 +269,34 @@ async function handleBillingPortal() {
 // ── 8. Plan sync ──────────────────────────────────────────────────────────────
 // Fetches current plan from Supabase and caches it in chrome.storage.local
 // so gates.js can check plan gating without a network call every time.
+//
+// syncFromStripe=true: first calls the sync-billing Edge Function which pulls
+// the authoritative seat count + tier directly from Stripe, then reads the DB.
+// Used after returning from Stripe Checkout or the Customer Portal.
+// syncFromStripe=false (default): reads DB only, used for periodic background refresh.
 
-async function refreshUserPlan() {
+async function refreshUserPlan({ syncFromStripe = false } = {}) {
   let session;
   try { session = await Auth.getValidSession(); } catch {}
 
   if (!session) {
     chrome.storage.local.set({ crl_user_plan: { plan: 'free', signedIn: false } });
     return 'free';
+  }
+
+  // Pull authoritative data from Stripe before reading DB (post-checkout path)
+  if (syncFromStripe) {
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/sync-billing`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+    } catch (e) {
+      DEBUG && console.warn('[background] sync-billing call failed:', e);
+    }
   }
 
   const endpoint = `${SUPABASE_URL}/rest/v1/user_plan?select=*&limit=1`;
@@ -357,9 +386,10 @@ async function syncTeamCommands() {
     const personal = (data.commands ?? []).filter((c) => !c._isTeam);
     data.commands = [...personal, ...teamCmds];
     await CRLStorage.write(data);
+    await rebuildContextMenus();
 
-    console.log(`[CRL] Team sync: ${teamCmds.length} shared command(s) loaded`);
+    DEBUG && console.log(`[CRL] Team sync: ${teamCmds.length} shared command(s) loaded`);
   } catch (err) {
-    console.warn('[CRL] Team command sync failed:', err.message);
+    DEBUG && console.warn('[CRL] Team command sync failed:', err.message);
   }
 }
