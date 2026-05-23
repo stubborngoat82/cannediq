@@ -85,6 +85,9 @@
   let cachedCommands = [];
   let cachedStacks   = [];
 
+  // Pre-warm the commands cache so trigger detection is synchronous on first keypress
+  CRLStorage.getCommands().then((cmds) => { cachedCommands = cmds; }).catch(() => {});
+
   // ─── Selection snapshot ────────────────────────────────────────────────────
   // Clicking into a text field clears window.getSelection(). We track the last
   // non-empty selection so {{selectedText}} works even after the user has typed
@@ -154,25 +157,22 @@
     // Variable modal handles its own keyboard — bail out
     if (document.getElementById('crl-var-modal')) return;
 
-    // Trigger detection: fire on Space or Enter
-    if ((e.key === ' ' || e.key === 'Enter') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // Trigger detection: fire on Space, Enter, or Tab
+    // detectTriggerSync is called before any await so e.preventDefault() is always effective
+    if ((e.key === ' ' || e.key === 'Enter' || e.key === 'Tab') && !e.ctrlKey && !e.metaKey && !e.altKey) {
       if (!activeField) return;
-      const matched = await detectTrigger(activeField);
+      const matched = detectTriggerSync(activeField);
       if (matched) {
         e.preventDefault();
         e.stopPropagation();
-        await launchFromTrigger(matched);
+        launchFromTrigger(matched);
       }
     }
   }
 
   // ─── Trigger detection ────────────────────────────────────────────────────────
 
-  async function detectTrigger(field) {
-    if (!cachedCommands.length) {
-      cachedCommands = await CRLStorage.getCommands();
-    }
-
+  function detectTriggerSync(field) {
     let textBefore = '';
     let cursorPos  = 0;
 
@@ -182,8 +182,17 @@
     } else if (field.isContentEditable) {
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) return null;
-      textBefore = (field.innerText || '').slice(0, sel.getRangeAt(0).startOffset);
-      cursorPos  = textBefore.length;
+      try {
+        // Use a Range from field-start to cursor to get accurate document-level offset,
+        // instead of sel.getRangeAt(0).startOffset which is node-local and wrong in
+        // multi-node editors like Gmail.
+        const r0 = sel.getRangeAt(0);
+        const range = document.createRange();
+        range.setStart(field, 0);
+        range.setEnd(r0.startContainer, r0.startOffset);
+        textBefore = range.toString();
+        cursorPos  = textBefore.length;
+      } catch { return null; }
     }
 
     // Built-in: /ai-reply
@@ -215,6 +224,39 @@
     return null;
   }
 
+  // Walk text nodes inside root to find the DOM node+offset for a given character position
+  function getNodeAndOffsetAtPosition(root, targetOffset) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let remaining = targetOffset;
+    let node = walker.nextNode();
+    while (node) {
+      if (remaining <= node.textContent.length) return { node, offset: remaining };
+      remaining -= node.textContent.length;
+      node = walker.nextNode();
+    }
+    return null;
+  }
+
+  function removeTriggerInContentEditable(field, start, end) {
+    const startPos = getNodeAndOffsetAtPosition(field, start);
+    const endPos   = getNodeAndOffsetAtPosition(field, end);
+    if (!startPos || !endPos) return;
+    try {
+      const deleteRange = document.createRange();
+      deleteRange.setStart(startPos.node, startPos.offset);
+      deleteRange.setEnd(endPos.node, endPos.offset);
+      deleteRange.deleteContents();
+      const sel = window.getSelection();
+      if (sel) {
+        const newRange = document.createRange();
+        newRange.setStart(startPos.node, startPos.offset);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      }
+    } catch {}
+  }
+
   async function launchFromTrigger({ cmd, start, end, triggerType }) {
     // ── Built-in: AI Reply ───────────────────────────────────────────────────────
     if (cmd.commandType === 'ai_reply') {
@@ -224,6 +266,9 @@
           activeField.setRangeText('', start, end, 'start');
         }
         savedCursor = { start, end: start };
+      } else if (activeField?.isContentEditable) {
+        removeTriggerInContentEditable(activeField, start, end);
+        savedCursor = null;
       }
       await CRLAIReply.launch(activeField, savedCursor);
       savedCursor = null;
@@ -254,6 +299,9 @@
         activeField.setRangeText('', start, end, 'start');
       }
       savedCursor = { start, end: start };
+    } else if (activeField?.isContentEditable) {
+      removeTriggerInContentEditable(activeField, start, end);
+      savedCursor = null;
     }
 
     await CRLExecutor.execute(cmd, {

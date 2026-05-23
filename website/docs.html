@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documentation — cannedIQ</title>
+  <meta name="description" content="Learn how to create commands, use variables, set triggers, and build AI-powered responses in cannedIQ." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy:   '#0F172A',
+            card:   '#111827',
+            border: '#1E293B',
+            blue:   '#3B82F6',
+            violet: '#8B5CF6',
+            muted:  '#94A3B8',
+          },
+          fontFamily: { sans: ['-apple-system','BlinkMacSystemFont','Segoe UI','system-ui','sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0F172A; color: #F8FAFC; scroll-behavior: smooth; }
+
+    /* Gradient text */
+    .grad { background: linear-gradient(135deg,#3B82F6 0%,#8B5CF6 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+    /* Sidebar */
+    .sidebar-link {
+      display: block; padding: 0.35rem 0.75rem; border-radius: 6px;
+      font-size: 0.875rem; color: #94A3B8; transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .sidebar-link:hover { color: #F8FAFC; background: #1E293B; }
+    .sidebar-link.active { color: #60A5FA; border-left-color: #3B82F6; background: rgba(59,130,246,0.08); }
+    .sidebar-group { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; padding: 0.75rem 0.75rem 0.25rem; }
+
+    /* Content prose */
+    .doc-h2 { font-size: 1.5rem; font-weight: 800; color: #F8FAFC; margin-top: 3.5rem; margin-bottom: 0.5rem; padding-bottom: 0.6rem; border-bottom: 1px solid #1E293B; scroll-margin-top: 5rem; }
+    .doc-h3 { font-size: 1.05rem; font-weight: 700; color: #E2E8F0; margin-top: 2rem; margin-bottom: 0.4rem; scroll-margin-top: 5rem; }
+    .doc-p  { color: #94A3B8; line-height: 1.8; margin-bottom: 1rem; font-size: 0.9375rem; }
+    .doc-ul { color: #94A3B8; line-height: 1.8; margin-bottom: 1rem; padding-left: 1.25rem; list-style: disc; font-size: 0.9375rem; }
+    .doc-ul li { margin-bottom: 0.3rem; }
+
+    /* Code */
+    code { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
+    .inline-code { background: #1E293B; color: #7DD3FC; padding: 0.15em 0.45em; border-radius: 5px; font-size: 0.85em; white-space: nowrap; }
+    .code-block { background: #0D1525; border: 1px solid #1E293B; border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1rem 0 1.5rem; font-size: 0.84rem; line-height: 1.7; overflow-x: auto; color: #CBD5E1; }
+    .code-block .cm { color: #475569; }
+    .code-block .kw { color: #7DD3FC; }
+    .code-block .str { color: #86EFAC; }
+    .code-block .var { color: #FCA5A5; }
+    .code-block .tag { color: #C4B5FD; }
+
+    /* Callout boxes */
+    .callout       { border-radius: 10px; padding: 1rem 1.25rem; margin: 1.25rem 0; font-size: 0.9rem; }
+    .callout-blue  { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.22); color: #93C5FD; }
+    .callout-green { background: rgba(34,197,94,0.07); border: 1px solid rgba(34,197,94,0.2); color: #86EFAC; }
+    .callout-amber { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.2); color: #FCD34D; }
+    .callout-violet { background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.22); color: #C4B5FD; }
+
+    /* Tables */
+    .doc-table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: 0.875rem; }
+    .doc-table th { text-align: left; padding: 0.6rem 0.9rem; background: #111827; color: #E2E8F0; font-weight: 600; border-bottom: 1px solid #1E293B; }
+    .doc-table td { padding: 0.6rem 0.9rem; color: #94A3B8; border-bottom: 1px solid #1E293B; vertical-align: top; }
+    .doc-table tr:last-child td { border-bottom: none; }
+    .doc-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* Badge */
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 0.15em 0.55em; border-radius: 999px; }
+    .badge-pro     { background: rgba(139,92,246,0.2); color: #C4B5FD; border: 1px solid rgba(139,92,246,0.3); }
+    .badge-ai      { background: rgba(59,130,246,0.2); color: #93C5FD; border: 1px solid rgba(59,130,246,0.3); }
+    .badge-free    { background: rgba(34,197,94,0.1); color: #86EFAC; border: 1px solid rgba(34,197,94,0.2); }
+    .badge-team    { background: rgba(245,158,11,0.1); color: #FCD34D; border: 1px solid rgba(245,158,11,0.2); }
+
+    /* Example card */
+    .example-card { background: #111827; border: 1px solid #1E293B; border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1rem 0; }
+    .example-card-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; margin-bottom: 0.75rem; }
+
+    /* Keyboard shortcut chip */
+    kbd { background: #1E293B; border: 1px solid #334155; border-radius: 5px; padding: 0.15em 0.5em; font-family: inherit; font-size: 0.8em; color: #CBD5E1; }
+
+    /* Sticky sidebar on scroll */
+    @media (min-width: 1024px) {
+      .sidebar-wrap { position: sticky; top: 5rem; height: calc(100vh - 5.5rem); overflow-y: auto; }
+    }
+
+    /* Custom scrollbar on sidebar */
+    .sidebar-wrap::-webkit-scrollbar { width: 4px; }
+    .sidebar-wrap::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm">⚡</div>
+        <span class="font-bold text-lg tracking-tight">cannedIQ</span>
+      </a>
+      <div class="flex items-center gap-6 text-sm text-slate-400">
+        <a href="/pricing" class="hover:text-white transition-colors">Pricing</a>
+        <a href="/privacy" class="hover:text-white transition-colors">Privacy</a>
+        <a href="https://chromewebstore.google.com" target="_blank" class="bg-gradient-to-r from-blue-500 to-violet-600 text-white px-4 py-1.5 rounded-lg font-semibold hover:opacity-90 transition-opacity text-sm">Add to Chrome</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto px-6 flex gap-8 pt-10 pb-24">
+
+    <!-- ── Sidebar ── -->
+    <aside class="hidden lg:block w-56 shrink-0">
+      <div class="sidebar-wrap pr-2">
+        <div class="sidebar-group">Getting Started</div>
+        <a href="#overview"    class="sidebar-link">Overview</a>
+        <a href="#quickstart"  class="sidebar-link">Quick Start</a>
+        <a href="#shortcuts"   class="sidebar-link">Keyboard Shortcuts</a>
+
+        <div class="sidebar-group mt-3">Commands</div>
+        <a href="#commands"       class="sidebar-link">Creating Commands</a>
+        <a href="#static"         class="sidebar-link">Static Templates</a>
+        <a href="#ai-commands"    class="sidebar-link">AI Commands</a>
+        <a href="#stacks"         class="sidebar-link">Stacks</a>
+
+        <div class="sidebar-group mt-3">Variables</div>
+        <a href="#variables"         class="sidebar-link">How Variables Work</a>
+        <a href="#dynamic-vars"      class="sidebar-link">Dynamic Variables</a>
+        <a href="#custom-vars"       class="sidebar-link">Custom Variables</a>
+
+        <div class="sidebar-group mt-3">Triggers</div>
+        <a href="#triggers"       class="sidebar-link">How Triggers Work</a>
+        <a href="#slash-trigger"  class="sidebar-link">Slash Text Triggers</a>
+        <a href="#conditions"     class="sidebar-link">Conditions</a>
+
+        <div class="sidebar-group mt-3">Actions</div>
+        <a href="#actions"            class="sidebar-link">Action Types</a>
+        <a href="#action-examples"    class="sidebar-link">Action Examples</a>
+
+        <div class="sidebar-group mt-3">Examples</div>
+        <a href="#ex-support"    class="sidebar-link">Support Teams</a>
+        <a href="#ex-sales"      class="sidebar-link">Sales Outreach</a>
+        <a href="#ex-recruiting" class="sidebar-link">Recruiting</a>
+        <a href="#ex-dev"        class="sidebar-link">Developers</a>
+      </div>
+    </aside>
+
+    <!-- ── Main content ── -->
+    <main class="flex-1 min-w-0 max-w-3xl">
+
+      <!-- Hero -->
+      <div class="mb-10">
+        <p class="text-sm font-semibold text-blue-400 uppercase tracking-widest mb-3">Documentation</p>
+        <h1 class="text-4xl font-extrabold tracking-tight mb-4">
+          cannedIQ <span class="grad">User Guide</span>
+        </h1>
+        <p class="text-slate-400 text-base leading-relaxed max-w-xl">
+          Everything you need to create powerful commands, automate repetitive typing, and let AI draft responses for you — on any webpage.
+        </p>
+      </div>
+
+      <!-- ════════════════════════════════════════════ OVERVIEW ═══ -->
+      <h2 id="overview" class="doc-h2">Overview</h2>
+      <p class="doc-p">cannedIQ is a Chrome Extension that stores your text snippets, templates, and AI prompts and inserts them into any text field on any webpage — emails, support tickets, LinkedIn messages, GitHub comments, Slack, and more.</p>
+      <p class="doc-p">There are three core building blocks:</p>
+      <ul class="doc-ul">
+        <li><strong class="text-slate-200">Commands</strong> — a saved response, template, or AI prompt you can launch at any time.</li>
+        <li><strong class="text-slate-200">Stacks</strong> — folders that group related commands together.</li>
+        <li><strong class="text-slate-200">Variables</strong> — placeholders like <span class="inline-code">{{today}}</span> or <span class="inline-code">{{firstName}}</span> that make templates dynamic.</li>
+      </ul>
+
+      <!-- ════════════════════════════════════════════ QUICKSTART ═══ -->
+      <h2 id="quickstart" class="doc-h2">Quick Start</h2>
+      <p class="doc-p">Getting your first command running takes about 60 seconds:</p>
+      <ol class="doc-ul list-decimal">
+        <li>Click the cannedIQ icon in your Chrome toolbar to open <strong class="text-slate-200">Options</strong>.</li>
+        <li>Click <strong class="text-slate-200">+ New Command</strong> in the Commands tab.</li>
+        <li>Give it a name, write your template text, and save.</li>
+        <li>Navigate to any webpage with a text field, click into it, and press <kbd>Ctrl</kbd>+<kbd>Space</kbd> (or <kbd>⌘</kbd>+<kbd>Space</kbd> on Mac).</li>
+        <li>Find your command, press <kbd>Enter</kbd> — done.</li>
+      </ol>
+      <div class="callout callout-blue">
+        💡 <strong>Tip:</strong> You can also trigger commands by typing a slash keyword directly in any text field (e.g. <span class="inline-code">/thanks</span>) and pressing <kbd>Tab</kbd> or <kbd>Space</kbd>.
+      </div>
+
+      <!-- ════════════════════════════════════════════ SHORTCUTS ═══ -->
+      <h2 id="shortcuts" class="doc-h2">Keyboard Shortcuts</h2>
+      <table class="doc-table">
+        <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Open the command palette on any page</td></tr>
+          <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Navigate commands in the palette</td></tr>
+          <tr><td><kbd>Enter</kbd></td><td>Launch the selected command</td></tr>
+          <tr><td><kbd>Escape</kbd></td><td>Close the palette or cancel a variable prompt</td></tr>
+          <tr><td><kbd>/keyword</kbd> + <kbd>Tab</kbd></td><td>Inline slash trigger — expand command directly in a text field</td></tr>
+          <tr><td><kbd>/keyword</kbd> + <kbd>Space</kbd></td><td>Alternative inline slash expand</td></tr>
+        </tbody>
+      </table>
+
+      <!-- ════════════════════════════════════════════ COMMANDS ═══ -->
+      <h2 id="commands" class="doc-h2">Creating Commands</h2>
+      <p class="doc-p">Open Options → Commands tab → click <strong class="text-slate-200">+ New Command</strong>. Every command has these core fields:</p>
+      <table class="doc-table">
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><strong class="text-slate-300">Name</strong></td><td>Shown in the palette. Make it scannable — e.g. "Thank you — Order Delay".</td></tr>
+          <tr><td><strong class="text-slate-300">Stack</strong></td><td>The folder/category this command belongs to.</td></tr>
+          <tr><td><strong class="text-slate-300">Slash Trigger</strong></td><td>A short keyword (no spaces) you can type inline to expand this command, e.g. <span class="inline-code">thanks</span>.</td></tr>
+          <tr><td><strong class="text-slate-300">Template</strong></td><td>The text to insert. Supports <span class="inline-code">{{variables}}</span>.</td></tr>
+          <tr><td><strong class="text-slate-300">Command Type</strong></td><td><em>Static</em> (plain text/template) or <em>AI</em> (prompt sent to GPT).</td></tr>
+          <tr><td><strong class="text-slate-300">Conditions</strong></td><td>Rules that limit when this command appears (site, URL, etc.). <span class="badge badge-pro">Pro</span></td></tr>
+          <tr><td><strong class="text-slate-300">Actions</strong></td><td>What happens after text is resolved — insert, copy, open URL, etc.</td></tr>
+          <tr><td><strong class="text-slate-300">Favorite</strong></td><td>Pins the command to the top of the palette with a ★.</td></tr>
+        </tbody>
+      </table>
+
+      <!-- ════════════════════════════════════════════ STATIC ═══ -->
+      <h2 id="static" class="doc-h2">Static Templates</h2>
+      <p class="doc-p">A static command inserts plain text, optionally with variable placeholders. It's instant — no network call, no delay.</p>
+
+      <h3 id="static-basic" class="doc-h3">Basic Example</h3>
+      <div class="example-card">
+        <div class="example-card-title">Command: "Greeting — Support"</div>
+        <div class="code-block">Hi {{firstName}},
+
+Thanks for reaching out to support! My name is {{agentName}} and I'll be helping you today.
+
+Could you provide your order number so I can look into this for you?</div>
+        <p class="doc-p" style="margin-bottom:0">When launched, cannedIQ prompts you to fill in <span class="inline-code">firstName</span> and <span class="inline-code">agentName</span>, then inserts the completed text at your cursor.</p>
+      </div>
+
+      <h3 class="doc-h3">Multi-line &amp; Formatted Text</h3>
+      <p class="doc-p">Line breaks in your template are preserved exactly. Write the template the way you want it to appear in the output — what you see is what gets inserted.</p>
+
+      <!-- ════════════════════════════════════════════ AI COMMANDS ═══ -->
+      <h2 id="ai-commands" class="doc-h2">AI Commands <span class="badge badge-ai ml-2">Pro + AI</span></h2>
+      <p class="doc-p">AI commands send a prompt to GPT and insert the generated response. You write the instructions — cannedIQ handles the API call. No API key required.</p>
+
+      <div class="callout callout-violet">
+        ⚡ <strong>How it works:</strong> The prompt is resolved (variables filled in), sent to cannedIQ's secure AI service, and the generated text is inserted into your active field. Your session JWT is used — the API key never touches your browser.
+      </div>
+
+      <h3 class="doc-h3">Writing an AI Prompt</h3>
+      <p class="doc-p">Think of the AI prompt as instructions to a writing assistant. Be specific about tone, length, and purpose. Use <span class="inline-code">{{inputText}}</span> to pass whatever you've already written or selected into the prompt.</p>
+
+      <div class="example-card">
+        <div class="example-card-title">AI Prompt: "Improve — Tone Polisher"</div>
+        <div class="code-block">Rewrite the following message in a friendly but professional tone. Keep it concise, under 3 sentences. Do not change the core meaning.
+
+Message to rewrite:
+{{inputText}}</div>
+        <p class="doc-p" style="margin-bottom:0">With text already in the field, launch this command — it sends what you wrote to GPT and replaces it with the polished version.</p>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">AI Prompt: "Generate — Cold Outreach"</div>
+        <div class="code-block">Write a short, personalized LinkedIn connection request for someone in {{role}} at {{company}}.
+My goal: {{goal}}.
+Tone: warm, direct, no fluff. Max 3 sentences.</div>
+        <p class="doc-p" style="margin-bottom:0">Variables <span class="inline-code">role</span>, <span class="inline-code">company</span>, and <span class="inline-code">goal</span> are prompted when you launch — you fill them in and AI writes the message.</p>
+      </div>
+
+      <h3 class="doc-h3">AI Prompt Best Practices</h3>
+      <ul class="doc-ul">
+        <li>State the <strong class="text-slate-200">output format</strong> — "reply in bullet points", "write one paragraph", "give me a subject line only".</li>
+        <li>State the <strong class="text-slate-200">tone</strong> — "professional", "casual", "empathetic but firm".</li>
+        <li>Use <span class="inline-code">{{inputText}}</span> to reference existing draft text or selected content.</li>
+        <li>Add constraints — "under 50 words", "no exclamation marks", "avoid the phrase 'I hope this email finds you well'".</li>
+        <li>Provide <strong class="text-slate-200">context</strong> about your role: "You are a customer support agent for a SaaS company".</li>
+      </ul>
+
+      <!-- ════════════════════════════════════════════ STACKS ═══ -->
+      <h2 id="stacks" class="doc-h2">Stacks</h2>
+      <p class="doc-p">Stacks are folders for organizing commands. You might have stacks for "Support", "Sales", "HR Templates", or "Personal". In the command palette, stacks appear as section headers so you can navigate large libraries quickly.</p>
+      <p class="doc-p">Free accounts can have up to 3 stacks. Pro and Team plans are unlimited.</p>
+      <p class="doc-p">Each stack has a <strong class="text-slate-200">name</strong>, <strong class="text-slate-200">color</strong>, and <strong class="text-slate-200">icon</strong>. Team stacks synced from a team admin show a 🏢 icon and cannot be edited by members.</p>
+
+      <!-- ════════════════════════════════════════════ VARIABLES ═══ -->
+      <h2 id="variables" class="doc-h2">How Variables Work</h2>
+      <p class="doc-p">Variables are placeholders written as <span class="inline-code">{{variableName}}</span> inside your template or AI prompt. When a command is launched, cannedIQ resolves each placeholder to its real value before inserting the text.</p>
+      <p class="doc-p">There are two types:</p>
+      <ul class="doc-ul">
+        <li><strong class="text-slate-200">Dynamic variables</strong> — resolved automatically from the current page context. No user input needed.</li>
+        <li><strong class="text-slate-200">Custom variables</strong> — you define them; a fill-in modal appears when the command is launched.</li>
+      </ul>
+
+      <!-- ════════════════════════════════════════════ DYNAMIC VARS ═══ -->
+      <h2 id="dynamic-vars" class="doc-h2">Dynamic Variables</h2>
+      <p class="doc-p">These are resolved automatically — you just drop the placeholder in your template and it fills itself in.</p>
+
+      <table class="doc-table">
+        <thead><tr><th>Variable</th><th>Resolves to</th><th>Example output</th></tr></thead>
+        <tbody>
+          <tr><td><span class="inline-code">{{today}}</span></td><td>Current date (locale format)</td><td>5/21/2026</td></tr>
+          <tr><td><span class="inline-code">{{now}}</span></td><td>Current date &amp; time</td><td>5/21/2026, 2:34:00 PM</td></tr>
+          <tr><td><span class="inline-code">{{time}}</span></td><td>Current time only</td><td>2:34:00 PM</td></tr>
+          <tr><td><span class="inline-code">{{pageTitle}}</span></td><td>Title of the current tab</td><td>Dashboard — Acme Corp</td></tr>
+          <tr><td><span class="inline-code">{{currentUrl}}</span></td><td>Full URL of the current page</td><td>https://github.com/acme/repo/issues/42</td></tr>
+          <tr><td><span class="inline-code">{{hostname}}</span></td><td>Domain name only</td><td>github.com</td></tr>
+          <tr><td><span class="inline-code">{{siteName}}</span></td><td>Friendly site name (if recognized)</td><td>GitHub, Gmail, LinkedIn…</td></tr>
+          <tr><td><span class="inline-code">{{selectedText}}</span></td><td>Text you have highlighted on the page</td><td><em>whatever you selected</em></td></tr>
+          <tr><td><span class="inline-code">{{activeInput}}</span></td><td>Current content of the focused text field</td><td><em>what's already typed</em></td></tr>
+          <tr><td><span class="inline-code">{{inputText}}</span></td><td>Active field content, or selected text if field is empty. Best for AI prompts.</td><td><em>draft or selection</em></td></tr>
+          <tr><td><span class="inline-code">{{clipboard}}</span></td><td>Your clipboard contents (requires clipboard setting enabled)</td><td><em>last copied text</em></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-green">
+        ✅ <strong>Best practice for AI commands:</strong> Use <span class="inline-code">{{inputText}}</span> instead of <span class="inline-code">{{selectedText}}</span> or <span class="inline-code">{{activeInput}}</span> separately. It intelligently falls back — if there's text in the field it uses that; if you've selected text on the page it uses that instead.
+      </div>
+
+      <h3 class="doc-h3">Usage Examples</h3>
+      <div class="example-card">
+        <div class="example-card-title">Template using dynamic variables</div>
+        <div class="code-block">Following up on our conversation from {{today}}.
+
+I noticed you were viewing {{pageTitle}} — happy to answer any questions!
+
+Here's the link for reference: {{currentUrl}}</div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ CUSTOM VARS ═══ -->
+      <h2 id="custom-vars" class="doc-h2">Custom Variables</h2>
+      <p class="doc-p">Any <span class="inline-code">{{placeholder}}</span> that isn't a built-in dynamic variable becomes a custom variable. When the command launches, a modal appears asking you to fill in each one.</p>
+
+      <h3 class="doc-h3">Defining Custom Variables</h3>
+      <p class="doc-p">In the command editor, scroll to the <strong class="text-slate-200">Variables</strong> section. For each custom variable you want to configure, add an entry with:</p>
+      <table class="doc-table">
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><strong class="text-slate-300">Key</strong></td><td>Must match the placeholder exactly (case-sensitive). E.g. <span class="inline-code">firstName</span> for <span class="inline-code">{{firstName}}</span>.</td></tr>
+          <tr><td><strong class="text-slate-300">Label</strong></td><td>Human-readable prompt shown in the fill-in modal. E.g. "Customer's first name".</td></tr>
+          <tr><td><strong class="text-slate-300">Type</strong></td><td><span class="inline-code">text</span>, <span class="inline-code">textarea</span>, <span class="inline-code">date</span>, or <span class="inline-code">dropdown</span>.</td></tr>
+          <tr><td><strong class="text-slate-300">Options</strong></td><td>For <span class="inline-code">dropdown</span> type — comma-separated list of choices.</td></tr>
+          <tr><td><strong class="text-slate-300">Required</strong></td><td>If checked, the command won't fire until this field is filled in.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="doc-h3">Variable Types</h3>
+
+      <div class="example-card">
+        <div class="example-card-title">Text input variable</div>
+        <div class="code-block"><span class="cm">Key:</span>   firstName
+<span class="cm">Label:</span> Customer's first name
+<span class="cm">Type:</span>  text
+<span class="cm">Required:</span> yes</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Dropdown variable</div>
+        <div class="code-block"><span class="cm">Key:</span>     priority
+<span class="cm">Label:</span>   Issue priority
+<span class="cm">Type:</span>    dropdown
+<span class="cm">Options:</span> Low, Medium, High, Critical</div>
+        <p class="doc-p" style="margin-bottom:0.5rem">Template using it:</p>
+        <div class="code-block">This has been escalated as a <span class="var">{{priority}}</span> priority issue and will be reviewed within 24 hours.</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Date variable</div>
+        <div class="code-block"><span class="cm">Key:</span>   followUpDate
+<span class="cm">Label:</span> Follow-up date
+<span class="cm">Type:</span>  date</div>
+        <p class="doc-p" style="margin-bottom:0.5rem">Template using it:</p>
+        <div class="code-block">I'll circle back with you on <span class="var">{{followUpDate}}</span>. If you need anything before then, don't hesitate to reach out.</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Textarea variable (for longer input)</div>
+        <div class="code-block"><span class="cm">Key:</span>   issueDescription
+<span class="cm">Label:</span> Describe the issue in detail
+<span class="cm">Type:</span>  textarea</div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ TRIGGERS ═══ -->
+      <h2 id="triggers" class="doc-h2">How Triggers Work</h2>
+      <p class="doc-p">There are two ways to fire a command:</p>
+      <ul class="doc-ul">
+        <li><strong class="text-slate-200">Palette</strong> — open with <kbd>Ctrl</kbd>+<kbd>Space</kbd>, search, and hit <kbd>Enter</kbd>. Works everywhere.</li>
+        <li><strong class="text-slate-200">Slash trigger</strong> — type a shortcode directly in a text field; cannedIQ detects it and offers to expand. Great for muscle memory.</li>
+      </ul>
+
+      <!-- ════════════════════════════════════════════ SLASH TRIGGER ═══ -->
+      <h2 id="slash-trigger" class="doc-h2">Slash Text Triggers</h2>
+      <p class="doc-p">A slash trigger lets you type a short code inside any text field to expand a command without opening the palette. Set it in the <strong class="text-slate-200">Slash Trigger</strong> field when creating a command.</p>
+
+      <h3 class="doc-h3">How to Use</h3>
+      <ol class="doc-ul list-decimal">
+        <li>Click into any text field on a webpage.</li>
+        <li>Type <span class="inline-code">/yourkeyword</span>.</li>
+        <li>Press <kbd>Tab</kbd> or <kbd>Space</kbd> — the keyword disappears and the command fires.</li>
+      </ol>
+
+      <div class="callout callout-amber">
+        ⚠ <strong>Note:</strong> Slash triggers are case-insensitive and must not contain spaces. Keep them short and memorable — e.g. <span class="inline-code">ty</span>, <span class="inline-code">cob</span>, <span class="inline-code">outreach</span>.
+      </div>
+
+      <h3 class="doc-h3">Slash Trigger Examples</h3>
+      <table class="doc-table">
+        <thead><tr><th>Slash keyword</th><th>Command name</th><th>What it inserts</th></tr></thead>
+        <tbody>
+          <tr><td><span class="inline-code">/ty</span></td><td>Thank You — Quick</td><td>Short appreciation message</td></tr>
+          <tr><td><span class="inline-code">/cob</span></td><td>Close of Business</td><td>"I'll have this ready by close of business today."</td></tr>
+          <tr><td><span class="inline-code">/refund</span></td><td>Refund Policy</td><td>Full refund policy paragraph</td></tr>
+          <tr><td><span class="inline-code">/sig</span></td><td>Email Signature</td><td>Name, title, contact info</td></tr>
+          <tr><td><span class="inline-code">/ooo</span></td><td>Out of Office</td><td>Auto-reply template with <span class="inline-code">{{returnDate}}</span></td></tr>
+          <tr><td><span class="inline-code">/improve</span></td><td>AI: Polish This</td><td>Sends current field text to AI for rewriting</td></tr>
+        </tbody>
+      </table>
+
+      <!-- ════════════════════════════════════════════ CONDITIONS ═══ -->
+      <h2 id="conditions" class="doc-h2">Conditions <span class="badge badge-pro ml-2">Pro</span></h2>
+      <p class="doc-p">Conditions are rules that control when a command is visible and executable. A command with unmet conditions is hidden from the palette on that page — keeping your list clean and contextual.</p>
+      <p class="doc-p">All conditions must pass (AND logic). You can add multiple conditions to a single command.</p>
+
+      <h3 class="doc-h3">Condition Types</h3>
+      <table class="doc-table">
+        <thead><tr><th>Type</th><th>What it checks</th></tr></thead>
+        <tbody>
+          <tr><td><strong class="text-slate-300">Site / Hostname</strong></td><td>The domain of the current page (e.g. <span class="inline-code">zendesk.com</span>).</td></tr>
+          <tr><td><strong class="text-slate-300">URL</strong></td><td>The full URL of the current page.</td></tr>
+          <tr><td><strong class="text-slate-300">Site Name</strong></td><td>Recognized friendly name — Gmail, LinkedIn, GitHub, Slack, etc.</td></tr>
+          <tr><td><strong class="text-slate-300">Selected Text Exists</strong></td><td>Whether the user has text highlighted on the page.</td></tr>
+          <tr><td><strong class="text-slate-300">Input Focused</strong></td><td>Whether the cursor is inside a text field.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="doc-h3">Operators</h3>
+      <table class="doc-table">
+        <thead><tr><th>Operator</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><span class="inline-code">contains</span></td><td>The field includes the value anywhere</td></tr>
+          <tr><td><span class="inline-code">equals</span></td><td>Exact match (case-insensitive)</td></tr>
+          <tr><td><span class="inline-code">startsWith</span></td><td>Field begins with the value</td></tr>
+          <tr><td><span class="inline-code">endsWith</span></td><td>Field ends with the value</td></tr>
+          <tr><td><span class="inline-code">exists</span></td><td>The field is not empty</td></tr>
+          <tr><td><span class="inline-code">notExists</span></td><td>The field is empty</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="doc-h3">Condition Examples</h3>
+
+      <div class="example-card">
+        <div class="example-card-title">Only show on Zendesk</div>
+        <div class="code-block"><span class="cm">Type:</span>      hostname
+<span class="cm">Operator:</span>  contains
+<span class="cm">Value:</span>     zendesk.com</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Only show when text is selected</div>
+        <div class="code-block"><span class="cm">Type:</span>      selectedTextExists
+<span class="cm">Operator:</span>  exists</div>
+        <p class="doc-p" style="margin-bottom:0">Useful for AI "rewrite selection" commands — no text selected = command hidden.</p>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Only show on GitHub issues and PRs</div>
+        <div class="code-block"><span class="cm">Type:</span>      url
+<span class="cm">Operator:</span>  contains
+<span class="cm">Value:</span>     github.com/</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Only show on LinkedIn (recognized site)</div>
+        <div class="code-block"><span class="cm">Type:</span>      siteName
+<span class="cm">Operator:</span>  equals
+<span class="cm">Value:</span>     LinkedIn</div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ ACTIONS ═══ -->
+      <h2 id="actions" class="doc-h2">Action Types</h2>
+      <p class="doc-p">After a command's template is resolved, an action defines what happens with the resulting text. Most commands use the default <strong class="text-slate-200">Insert Text</strong> action, but you can chain multiple actions or pick alternatives.</p>
+
+      <table class="doc-table">
+        <thead><tr><th>Action</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong class="text-slate-300">Insert Text</strong><br><span class="text-xs text-slate-500">insert_text</span></td>
+            <td>Types the resolved text into the focused input at cursor position. This is the default.</td>
+          </tr>
+          <tr>
+            <td><strong class="text-slate-300">Replace Selection</strong><br><span class="text-xs text-slate-500">replace_selection</span></td>
+            <td>Replaces highlighted text with the resolved text. Falls back to Insert Text if nothing is selected.</td>
+          </tr>
+          <tr>
+            <td><strong class="text-slate-300">Copy to Clipboard</strong><br><span class="text-xs text-slate-500">copy_to_clipboard</span></td>
+            <td>Puts the resolved text on your clipboard and shows a toast. Nothing is inserted.</td>
+          </tr>
+          <tr>
+            <td><strong class="text-slate-300">Open URL</strong><br><span class="text-xs text-slate-500">open_url</span></td>
+            <td>Opens a URL in a new tab. The template becomes the URL (variables are resolved, so you can build dynamic URLs).</td>
+          </tr>
+          <tr>
+            <td><strong class="text-slate-300">Submit Form</strong><br><span class="text-xs text-slate-500">submit_form</span></td>
+            <td>Inserts text then submits the nearest <span class="inline-code">&lt;form&gt;</span>. Shows a confirmation prompt first.</td>
+          </tr>
+          <tr>
+            <td><strong class="text-slate-300">Click Button</strong><br><span class="text-xs text-slate-500">click_button</span></td>
+            <td>Clicks a button on the page using a CSS selector. Useful for automating repetitive UI flows.</td>
+          </tr>
+          <tr>
+            <td><strong class="text-slate-300">Chain Command</strong><br><span class="text-xs text-slate-500">chain_command</span></td>
+            <td>Runs another command after this one completes. Lets you compose complex sequences.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ════════════════════════════════════════════ ACTION EXAMPLES ═══ -->
+      <h2 id="action-examples" class="doc-h2">Action Examples</h2>
+
+      <h3 class="doc-h3">Copy to clipboard (no insertion)</h3>
+      <div class="example-card">
+        <div class="example-card-title">Command: "Copy — Meeting Link"</div>
+        <div class="code-block"><span class="cm">Template:</span>  https://meet.google.com/abc-defg-hij
+<span class="cm">Action:</span>    copy_to_clipboard</div>
+        <p class="doc-p" style="margin-bottom:0">Slash trigger <span class="inline-code">/meet</span> → copies your link to clipboard instantly. No text is typed.</p>
+      </div>
+
+      <h3 class="doc-h3">Open a dynamic URL</h3>
+      <div class="example-card">
+        <div class="example-card-title">Command: "Search — Jira Ticket"</div>
+        <div class="code-block"><span class="cm">Template:</span>  https://yourcompany.atlassian.net/browse/{{ticketId}}
+<span class="cm">Action:</span>    open_url</div>
+        <p class="doc-p" style="margin-bottom:0">You're prompted for the ticket ID, then the URL opens in a new tab.</p>
+      </div>
+
+      <h3 class="doc-h3">Replace selected text (AI rewrite)</h3>
+      <div class="example-card">
+        <div class="example-card-title">Command: "AI — Shorten This" (AI type)</div>
+        <div class="code-block"><span class="cm">AI Prompt:</span>  Make this more concise. Keep the same meaning. Max 2 sentences:
+{{inputText}}
+
+<span class="cm">Action:</span>      replace_selection</div>
+        <p class="doc-p" style="margin-bottom:0">Highlight a paragraph → launch → AI replaces just the selected text with a shorter version.</p>
+      </div>
+
+      <h3 class="doc-h3">Chain commands</h3>
+      <div class="example-card">
+        <div class="example-card-title">Command: "Insert &amp; Copy — Promo Code"</div>
+        <div class="code-block"><span class="cm">Template:</span>  Use code <span class="var">{{promoCode}}</span> for 20% off your first order!
+<span class="cm">Actions:</span>
+  1. insert_text          <span class="cm">→ types the text into the field</span>
+  2. chain_command        <span class="cm">→ then runs "Log — Promo Used" command</span></div>
+      </div>
+
+      <!-- ════════════════════════════════════════════ EXAMPLES ═══ -->
+      <h2 id="ex-support" class="doc-h2">Examples — Support Teams</h2>
+
+      <div class="example-card">
+        <div class="example-card-title">Command: "Refund Approved"  · Slash: /refund-ok</div>
+        <div class="code-block">Hi {{firstName}},
+
+Great news — your refund of <span class="var">{{amount}}</span> has been approved and will appear back on your <span class="var">{{paymentMethod}}</span> within 5–10 business days.
+
+Your refund reference number is <span class="var">{{refundId}}</span>.
+
+Let me know if there's anything else I can help with!
+
+— {{agentName}}</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Command: "Escalation Notice"  · Condition: hostname contains zendesk.com</div>
+        <div class="code-block">Hi {{firstName}},
+
+I want to let you know that I've escalated your ticket to our <span class="var">{{team}}</span> team. They specialize in <span class="var">{{issueType}}</span> and will be reaching out within <span class="var">{{sla}}</span>.
+
+Your original ticket #<span class="var">{{ticketNumber}}</span> remains open, so you can reply anytime.
+
+Thank you for your patience.</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">AI Command: "Summarize — Ticket Thread"  · Slash: /summarize</div>
+        <div class="code-block">You are a support agent assistant. Summarize the following customer support thread in 3 bullet points:
+- The customer's core issue
+- What was tried or offered
+- Current status / next step
+
+Thread:
+{{inputText}}</div>
+        <p class="doc-p" style="margin-bottom:0">Select the entire ticket thread, then run this command. The summary is inserted above or copied to clipboard.</p>
+      </div>
+
+      <!-- Sales -->
+      <h2 id="ex-sales" class="doc-h2">Examples — Sales Outreach</h2>
+
+      <div class="example-card">
+        <div class="example-card-title">Command: "LinkedIn Connect Request"  · AI · Condition: siteName equals LinkedIn</div>
+        <div class="code-block">Write a short LinkedIn connection request to {{name}}, who works as {{role}} at {{company}}.
+Context about why I'm reaching out: {{reason}}.
+Tone: friendly, direct, not salesy. Max 2 sentences. No emojis.</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Command: "Follow-Up — No Response"  · Slash: /followup</div>
+        <div class="code-block">Hi {{firstName}},
+
+I wanted to follow up on my message from {{lastContactDate}}. I know things get busy — just wanted to make sure this didn't get lost.
+
+Would a quick {{duration}}-minute call work this week to explore if <span class="var">{{productName}}</span> might be a fit for {{company}}?
+
+Happy to work around your schedule.</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Command: "Open — CRM Record"  · Slash: /crm · Action: open_url</div>
+        <div class="code-block">https://app.hubspot.com/contacts/search?query={{email}}</div>
+        <p class="doc-p" style="margin-bottom:0">Type a customer email when prompted — their HubSpot record opens instantly.</p>
+      </div>
+
+      <!-- Recruiting -->
+      <h2 id="ex-recruiting" class="doc-h2">Examples — Recruiting</h2>
+
+      <div class="example-card">
+        <div class="example-card-title">Command: "Interview Invite"  · Slash: /invite</div>
+        <div class="code-block">Hi {{candidateName}},
+
+Thank you for applying to the {{role}} position at {{company}}! We've reviewed your background and would love to schedule an interview.
+
+The interview will be a {{duration}} conversation with {{interviewerName}} covering {{topics}}.
+
+You can book a time that works for you here: {{schedulingLink}}
+
+Looking forward to speaking with you!</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">AI Command: "Personalize — Outreach"  · Condition: siteName equals LinkedIn</div>
+        <div class="code-block">Write a personalized recruiter outreach message for a candidate on LinkedIn.
+Role we're hiring for: {{role}}
+What makes this role interesting: {{pitch}}
+Candidate's background (from their profile): {{inputText}}
+
+Keep it under 4 sentences. Don't use phrases like "I came across your profile."</div>
+      </div>
+
+      <!-- Developers -->
+      <h2 id="ex-dev" class="doc-h2">Examples — Developers</h2>
+
+      <div class="example-card">
+        <div class="example-card-title">Command: "PR Description Template"  · Condition: hostname contains github.com</div>
+        <div class="code-block">## What does this PR do?
+{{summary}}
+
+## Why?
+{{motivation}}
+
+## How to test
+1. {{testStep1}}
+2. {{testStep2}}
+
+## Checklist
+- [ ] Tests added/updated
+- [ ] Docs updated
+- [ ] No breaking changes (or noted above)</div>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">AI Command: "Explain — Selected Code"  · Action: copy_to_clipboard</div>
+        <div class="code-block">Explain the following code in plain English. Assume the reader is a mid-level developer.
+Format: 1 sentence summary, then a bulleted breakdown of key logic.
+
+Code:
+{{selectedText}}</div>
+        <p class="doc-p" style="margin-bottom:0">Highlight a function → run → AI explanation is copied to clipboard ready to paste into a comment or Slack.</p>
+      </div>
+
+      <div class="example-card">
+        <div class="example-card-title">Command: "Open — Docs Search"  · Slash: /docs · Action: open_url</div>
+        <div class="code-block">https://your-internal-docs.com/search?q={{searchTerm}}</div>
+        <p class="doc-p" style="margin-bottom:0">Type your search term in the prompt → internal docs open in a new tab.</p>
+      </div>
+
+      <!-- CTA -->
+      <div class="mt-16 bg-gradient-to-br from-blue-600/20 to-violet-600/20 border border-blue-500/20 rounded-2xl p-8 text-center">
+        <div class="text-3xl mb-3">⚡</div>
+        <h3 class="text-xl font-bold text-white mb-2">Ready to build your library?</h3>
+        <p class="text-slate-400 text-sm mb-5">Start with a few commands in your most-used workflow and grow from there.</p>
+        <a href="https://chromewebstore.google.com" target="_blank" class="inline-block bg-gradient-to-r from-blue-500 to-violet-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:opacity-90 transition-opacity text-sm">Add cannedIQ to Chrome →</a>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 py-10">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+      <span>© 2025 AH Push It LLC. All rights reserved.</span>
+      <div class="flex gap-6">
+        <a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a>
+        <a href="/terms"   class="hover:text-white transition-colors">Terms of Service</a>
+        <a href="/pricing" class="hover:text-white transition-colors">Pricing</a>
+        <a href="/docs"    class="text-slate-400 hover:text-white transition-colors">Docs</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Sidebar scroll spy -->
+  <script>
+    const links = document.querySelectorAll('.sidebar-link[href^="#"]');
+    const sections = [...links].map(l => document.querySelector(l.getAttribute('href'))).filter(Boolean);
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const active = [...links].find(l => l.getAttribute('href') === '#' + entry.target.id);
+          if (active) active.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+  </script>
+
+</body>
+</html>
