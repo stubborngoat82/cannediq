@@ -200,6 +200,7 @@ supabase functions deploy billing-checkout
 supabase functions deploy billing-portal
 supabase functions deploy stripe-webhook
 supabase functions deploy sync-billing        # Syncs seat count from Stripe on demand
+supabase functions deploy adjust-seats        # Owner-initiated seat add/remove
 supabase functions deploy ai-generate         # Already deployed — re-deploy if updated
 
 # Team provisioning (deploy without JWT verification)

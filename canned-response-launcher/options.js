@@ -100,6 +100,12 @@
       return; // Proceed into app after they set a real password
     }
 
+    // EULA gate — must accept before accessing the extension
+    // (skipped if already accepted; shows blocking modal otherwise)
+    if (typeof EulaModal !== 'undefined') {
+      await EulaModal.checkAndShow();
+    }
+
     // New user who hasn't completed onboarding — show the demographics form
     if (currentProfile && !currentProfile.onboarded_at) {
       showOnboardingModal();
@@ -974,22 +980,124 @@
       </div>`;
   }
 
-  function renderSeatUsage(teamId, seatsUsed, seatsPurchased) {
+  function renderSeatUsage(teamId, seatsUsed, seatsPurchased, isOwner = false) {
     const el = document.getElementById(`seat-usage-${teamId}`);
     if (!el) return;
     const pct      = Math.min(100, Math.round((seatsUsed / seatsPurchased) * 100));
     const atLimit  = seatsUsed >= seatsPurchased;
     const barColor = atLimit ? '#dc2626' : pct >= 80 ? '#f59e0b' : '#4f46e5';
+
     el.innerHTML = `
       <div class="seat-usage-label">
         <span>${seatsUsed} of ${seatsPurchased} seat${seatsPurchased !== 1 ? 's' : ''} used</span>
         ${atLimit
-          ? '<span class="seat-badge seat-badge--full">Full — upgrade to invite more</span>'
+          ? '<span class="seat-badge seat-badge--full">At limit</span>'
           : `<span class="seat-badge">${seatsPurchased - seatsUsed} available</span>`}
       </div>
       <div class="seat-bar-track">
         <div class="seat-bar-fill" style="width:${pct}%;background:${barColor}"></div>
-      </div>`;
+      </div>
+      ${isOwner ? `
+      <div class="seat-adjuster" id="seat-adjuster-${teamId}">
+        <div class="seat-adjuster-left">
+          <span class="seat-adjuster-label">Paid seats:</span>
+          <div class="seat-stepper">
+            <button class="seat-step-btn" id="seat-dec-${teamId}" aria-label="Remove seat"
+              ${seatsPurchased <= seatsUsed ? 'disabled title="Cannot reduce below active member count"' : ''}>
+              −
+            </button>
+            <span class="seat-step-count" id="seat-count-${teamId}">${seatsPurchased}</span>
+            <button class="seat-step-btn" id="seat-inc-${teamId}" aria-label="Add seat">+</button>
+          </div>
+          <button class="btn btn-primary btn-sm seat-save-btn" id="seat-save-${teamId}" style="display:none">
+            Save changes
+          </button>
+          <button class="btn btn-ghost btn-sm seat-cancel-btn" id="seat-cancel-${teamId}" style="display:none">
+            Cancel
+          </button>
+        </div>
+        <div class="seat-adjuster-hint" id="seat-hint-${teamId}"></div>
+      </div>
+      <div id="seat-feedback-${teamId}" style="margin-top:6px;font-size:12px"></div>
+      ` : ''}`;
+
+    if (!isOwner) return;
+
+    // Wire up the stepper
+    let pendingQty = seatsPurchased;
+
+    function updateStepperState() {
+      const countEl  = document.getElementById(`seat-count-${teamId}`);
+      const saveBtn  = document.getElementById(`seat-save-${teamId}`);
+      const cancelBtn = document.getElementById(`seat-cancel-${teamId}`);
+      const decBtn   = document.getElementById(`seat-dec-${teamId}`);
+      const hintEl   = document.getElementById(`seat-hint-${teamId}`);
+      if (!countEl) return;
+
+      countEl.textContent = String(pendingQty);
+      const changed = pendingQty !== seatsPurchased;
+      saveBtn.style.display   = changed ? '' : 'none';
+      cancelBtn.style.display = changed ? '' : 'none';
+
+      // Disable minus if new count would go below current headcount
+      decBtn.disabled = pendingQty <= seatsUsed;
+      decBtn.title    = decBtn.disabled ? `Cannot reduce below ${seatsUsed} active member${seatsUsed !== 1 ? 's' : ''}` : '';
+
+      // Cost hint
+      if (changed) {
+        const delta = pendingQty - seatsPurchased;
+        const sign  = delta > 0 ? '+' : '';
+        hintEl.textContent = `${sign}${delta} seat${Math.abs(delta) !== 1 ? 's' : ''} — your next invoice will be adjusted automatically`;
+        hintEl.style.color = delta > 0 ? '#60a5fa' : '#f59e0b';
+      } else {
+        hintEl.textContent = '';
+      }
+    }
+
+    document.getElementById(`seat-inc-${teamId}`)?.addEventListener('click', () => {
+      if (pendingQty < 500) { pendingQty++; updateStepperState(); }
+    });
+
+    document.getElementById(`seat-dec-${teamId}`)?.addEventListener('click', () => {
+      if (pendingQty > seatsUsed && pendingQty > 1) { pendingQty--; updateStepperState(); }
+    });
+
+    document.getElementById(`seat-cancel-${teamId}`)?.addEventListener('click', () => {
+      pendingQty = seatsPurchased;
+      updateStepperState();
+      const fb = document.getElementById(`seat-feedback-${teamId}`);
+      if (fb) fb.textContent = '';
+    });
+
+    document.getElementById(`seat-save-${teamId}`)?.addEventListener('click', async () => {
+      const saveBtn   = document.getElementById(`seat-save-${teamId}`);
+      const cancelBtn = document.getElementById(`seat-cancel-${teamId}`);
+      const fb        = document.getElementById(`seat-feedback-${teamId}`);
+
+      saveBtn.disabled   = true;
+      saveBtn.textContent = 'Saving…';
+      if (fb) { fb.textContent = ''; fb.style.color = ''; }
+
+      try {
+        const result = await Api.adjustSeats(teamId, pendingQty);
+        // Re-render the whole seat block with the confirmed new values
+        renderSeatUsage(teamId, result.seatsUsed, result.seats_purchased, true);
+        // Show confirmation inside the freshly-rendered block
+        const newFb = document.getElementById(`seat-feedback-${teamId}`);
+        if (newFb) {
+          newFb.textContent = `✓ Updated to ${result.seats_purchased} seat${result.seats_purchased !== 1 ? 's' : ''}`;
+          newFb.style.color = '#4ade80';
+        }
+      } catch (err) {
+        saveBtn.disabled   = false;
+        saveBtn.textContent = 'Save changes';
+        if (cancelBtn) cancelBtn.style.display = '';
+        if (fb) {
+          fb.textContent = err.message || 'Failed to update seats. Please try again.';
+          fb.style.color = '#f87171';
+        }
+      }
+    });
   }
 
   function wireExpandedTeamButtons(card, team) {
@@ -1070,9 +1178,9 @@
         Api.getPendingInvites(teamId).catch(() => []),
       ]);
 
-      // Seat usage bar
+      // Seat usage bar — pass isOwner so the adjuster controls render for owners
       if (seatInfo) {
-        renderSeatUsage(teamId, seatInfo.seatsUsed, seatInfo.seatsPurchased);
+        renderSeatUsage(teamId, seatInfo.seatsUsed, seatInfo.seatsPurchased, callerIsOwner);
       }
 
       // Member roster — rich view with email, last active, status

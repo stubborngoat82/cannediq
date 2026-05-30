@@ -24,7 +24,7 @@
         "default": "Ctrl+Space",
         "mac": "Command+Shift+Space"
       },
-      "description": "Open CRL Command Palette"
+      "description": "Open cannedIQ Command Palette"
     },
     "open-ai-reply": {
       "suggested_key": {

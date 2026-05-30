@@ -109,7 +109,7 @@ const CRLExecutor = (() => {
 
       case 'submit_form': {
         if (action.confirm !== false) {
-          if (!confirm('CRL: Submit this form?')) break;
+          if (!confirm('cannedIQ: Submit this form?')) break;
         }
         insertText(text, activeField, savedCursor, triggerStart, triggerEnd);
         const form = activeField?.closest('form');
@@ -121,7 +121,7 @@ const CRLExecutor = (() => {
 
       case 'click_button': {
         if (action.confirm !== false) {
-          if (!confirm('CRL: Click this button?')) break;
+          if (!confirm('cannedIQ: Click this button?')) break;
         }
         const selector = action.selector || 'button[type=submit]';
         document.querySelector(selector)?.click();

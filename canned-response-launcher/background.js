@@ -83,7 +83,7 @@ async function rebuildContextMenus() {
 
     chrome.contextMenus.create({
       id: 'crl-root',
-      title: 'CRL — Launch Command',
+      title: 'cannedIQ — Launch Command',
       contexts: ['editable', 'selection'],
     });
 
@@ -332,15 +332,47 @@ async function refreshUserPlan({ syncFromStripe = false } = {}) {
 }
 
 // Refresh plan on startup, every 30 min, and right after billing events
-chrome.runtime.onInstalled.addListener(() => { refreshUserPlan(); syncTeamCommands(); });
-chrome.alarms.create('planRefresh',      { periodInMinutes: 30 });
-chrome.alarms.create('teamCommandsSync', { periodInMinutes: 30 });
+chrome.runtime.onInstalled.addListener(() => { refreshUserPlan(); syncTeamCommands(); fetchMaintenanceConfig(); });
+chrome.alarms.create('planRefresh',        { periodInMinutes: 30 });
+chrome.alarms.create('teamCommandsSync',   { periodInMinutes: 30 });
+chrome.alarms.create('maintenanceRefresh', { periodInMinutes: 30 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'planRefresh')      refreshUserPlan();
-  if (alarm.name === 'teamCommandsSync') syncTeamCommands();
+  if (alarm.name === 'planRefresh')        refreshUserPlan();
+  if (alarm.name === 'teamCommandsSync')   syncTeamCommands();
+  if (alarm.name === 'maintenanceRefresh') fetchMaintenanceConfig();
 });
 
-// ── 9. Team command sync ───────────────────────────────────────────────────────
+// Also fetch on service worker startup (covers browser restart, extension reload)
+fetchMaintenanceConfig();
+
+// ── 9. Maintenance config polling ────────────────────────────────────────────
+// Fetches banner_message + maintenance_mode from admin-maintenance (public endpoint).
+// Stores in chrome.storage.local and broadcasts to all content scripts.
+
+async function fetchMaintenanceConfig() {
+  try {
+    const res  = await fetch(`${SUPABASE_URL}/functions/v1/admin-maintenance`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const config = {
+      bannerMessage:   data.banner_message   ?? null,
+      maintenanceMode: data.maintenance_mode ?? false,
+    };
+    await chrome.storage.local.set({ maintenanceConfig: config });
+
+    // Broadcast to all content script tabs
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, { type: 'MAINTENANCE_UPDATE', config });
+      } catch { /* tab may not have content script */ }
+    }
+  } catch (e) {
+    DEBUG && console.warn('[CRL] Maintenance config fetch failed:', e.message);
+  }
+}
+
+// ── 10. Team command sync ─────────────────────────────────────────────────────
 // Pulls shared commands from Supabase and merges them into local storage.
 // Team commands are marked with _isTeam:true so they can be identified and
 // refreshed without overwriting personal commands.

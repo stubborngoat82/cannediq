@@ -500,6 +500,32 @@ const Api = (() => {
     };
   }
 
+  /**
+   * Adjust the number of paid seats on the owner's Stripe subscription.
+   * Only the team owner can call this.
+   *
+   * @param {string} teamId
+   * @param {number} quantity — new absolute seat count (must be >= active members)
+   * @returns {{ ok, seats_purchased, seatsUsed }}
+   */
+  async function adjustSeats(teamId, quantity) {
+    const session = await Auth.getValidSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/adjust-seats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ teamId, quantity }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `Failed to adjust seats (${res.status})`);
+    return data;
+  }
+
   // ── Team Commands (shared library) ───────────────────────────────────────────
 
   /**
@@ -606,6 +632,44 @@ const Api = (() => {
     };
   }
 
+  // ── EULA ─────────────────────────────────────────────────────────────────────
+
+  /**
+   * Returns true if the current user has already accepted the given EULA version.
+   * Never throws — returns false on any error so the modal is shown as a fallback.
+   */
+  async function checkEulaAcceptance(version) {
+    try {
+      const session = await Auth.getValidSession();
+      if (!session) return false;
+      const rows = await apiFetch(
+        `/eula_acceptances?user_id=eq.${encodeURIComponent(session.user.id)}` +
+        `&eula_version=eq.${encodeURIComponent(version)}&select=id&limit=1`
+      );
+      return Array.isArray(rows) && rows.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Inserts an acceptance row for the current user + version.
+   * Uses resolution=ignore-duplicates so it's safe to call more than once.
+   */
+  async function recordEulaAcceptance(version) {
+    const session = await Auth.getValidSession();
+    if (!session) throw new AuthError('Not authenticated');
+    await apiFetch('/eula_acceptances', {
+      method:  'POST',
+      prefer:  'resolution=ignore-duplicates,return=minimal',
+      body: JSON.stringify({
+        user_id:      session.user.id,
+        eula_version: version,
+        user_agent:   (typeof navigator !== 'undefined' ? navigator.userAgent : '').slice(0, 512),
+      }),
+    });
+  }
+
   // ── Public surface ────────────────────────────────────────────────────────────
 
   return {
@@ -648,6 +712,11 @@ const Api = (() => {
 
     // Team seats
     getTeamSeatUsage,
+    adjustSeats,
+
+    // EULA
+    checkEulaAcceptance,
+    recordEulaAcceptance,
 
     // Team categories (legacy)
     getTeamCategories,

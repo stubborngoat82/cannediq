@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cannedIQ Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d23;
+      --surface2:  #21242c;
+      --border:    rgba(255,255,255,0.08);
+      --accent:    #6c63ff;
+      --accent-h:  #7d75ff;
+      --text:      #e8e8f0;
+      --muted:     #888;
+      --green:     #22c55e;
+      --yellow:    #f59e0b;
+      --red:       #ef4444;
+      --radius:    8px;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+    /* ── Auth screen ── */
+    #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 36px 40px; width: 360px; }
+    .auth-box h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .auth-box p  { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+    .auth-box input { width: 100%; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; margin-bottom: 10px; }
+    .auth-box input:focus { outline: none; border-color: var(--accent); }
+    #auth-error { font-size: 12px; color: var(--red); min-height: 16px; margin-bottom: 8px; }
+
+    /* ── App shell ── */
+    #app { display: none; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+    .logo { font-weight: 700; font-size: 15px; }
+    .logo span { color: var(--accent); }
+    .admin-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; background: rgba(108,99,255,0.2); color: var(--accent); border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); }
+    #signout-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+    #signout-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    /* ── Tab nav ── */
+    .tab-nav { display: flex; gap: 2px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .tab-btn { padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Content ── */
+    .content { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Stat cards ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 28px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+    .stat-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+    .stat-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .stat-card.green .stat-value { color: var(--green); }
+    .stat-card.yellow .stat-value { color: var(--yellow); }
+    .stat-card.red .stat-value { color: var(--red); }
+
+    /* ── Section header ── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-size: 15px; font-weight: 600; }
+
+    /* ── Table ── */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.025); }
+    .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
+
+    /* ── Badges ── */
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-free  { background: rgba(255,255,255,0.06); color: var(--muted); }
+    .badge-pro   { background: rgba(108,99,255,0.18); color: #a89fff; }
+    .badge-ai    { background: rgba(34,197,94,0.15);  color: #4ade80; }
+    .badge-team  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .badge-susp  { background: rgba(239,68,68,0.15);  color: #f87171; }
+    .badge-admin { background: rgba(108,99,255,0.25); color: var(--accent); }
+    .badge-ok    { background: rgba(34,197,94,0.15);  color: #4ade80; }
+    .badge-none  { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+    /* ── Buttons ── */
+    .btn { padding: 7px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: background 0.15s; white-space: nowrap; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-h); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Filters bar ── */
+    .filters { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .filters input, .filters select { padding: 7px 11px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 13px; }
+    .filters input:focus, .filters select:focus { outline: none; border-color: var(--accent); }
+    .filters input { flex: 1; min-width: 180px; }
+    select option { background: var(--surface2); }
+
+    /* ── Pagination ── */
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+    .page-btns { display: flex; gap: 6px; }
+
+    /* ── Maintenance form ── */
+    .maint-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
+    .maint-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+    .maint-card label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .maint-card textarea { width: 100%; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 13px; resize: vertical; min-height: 80px; }
+    .maint-card textarea:focus { outline: none; border-color: var(--accent); }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--border); margin-top: 14px; }
+    .toggle-label { font-size: 13px; }
+    .toggle-desc  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: background 0.2s; }
+    .toggle-slider::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; background: var(--muted); border-radius: 50%; transition: transform 0.2s, background 0.2s; }
+    .toggle input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+    .toggle input:checked + .toggle-slider::after { transform: translateX(18px); background: #fff; }
+    .maint-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .maint-feedback { font-size: 12px; color: var(--green); margin-top: 8px; min-height: 18px; }
+
+    /* ── EULA tab ── */
+    .eula-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+    .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+    .progress-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.4s; }
+
+    /* ── Plan breakdown ── */
+    .plan-bars { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+    .plan-bar-row { display: flex; align-items: center; gap: 10px; }
+    .plan-bar-label { width: 52px; font-size: 12px; color: var(--muted); text-align: right; }
+    .plan-bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+    .plan-bar-fill  { height: 100%; border-radius: 4px; }
+    .plan-bar-fill.free { background: #444; }
+    .plan-bar-fill.pro  { background: var(--accent); }
+    .plan-bar-fill.ai   { background: var(--green); }
+    .plan-bar-fill.team { background: var(--yellow); }
+    .plan-bar-count { width: 32px; font-size: 12px; color: var(--muted); text-align: right; }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 48px; color: var(--muted); font-size: 13px; }
+
+    /* ── Action menu ── */
+    .action-cell { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    /* ── Alert ── */
+    .alert { padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; }
+    .alert-warn { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
+    .alert-danger { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #f87171; }
+  </style>
+</head>
+<body>
+
+<!-- ── Auth screen ──────────────────────────────────────────────── -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>⚡ cannedIQ Admin</h1>
+    <p>Sign in with your admin account to continue.</p>
+    <input id="auth-email" type="email" placeholder="Email address" autocomplete="email" />
+    <input id="auth-password" type="password" placeholder="Password" autocomplete="current-password" />
+    <p id="auth-error"></p>
+    <button class="btn btn-primary" id="auth-submit" style="width:100%">Sign In</button>
+  </div>
+</div>
+
+<!-- ── App ─────────────────────────────────────────────────────── -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">⚡ <span>canned</span>IQ</div>
+      <span class="admin-badge">Admin</span>
+    </div>
+    <div class="topbar-right">
+      <span id="admin-email-display"></span>
+      <button id="signout-btn">Sign out</button>
+    </div>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="users">👥 Users</button>
+    <button class="tab-btn" data-tab="billing">💰 Billing</button>
+    <button class="tab-btn" data-tab="eula">📋 EULA</button>
+    <button class="tab-btn" data-tab="maintenance">🔧 Maintenance</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ── Users tab ── -->
+    <div id="tab-users" class="tab-panel active">
+      <div class="stat-grid" id="users-stat-grid">
+        <div class="loading">Loading…</div>
+      </div>
+
+      <div class="section-header">
+        <span class="section-title">All Users</span>
+        <span id="users-count" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+
+      <div class="filters">
+        <input id="user-search" type="search" placeholder="Search email or name…" />
+        <select id="user-plan-filter">
+          <option value="">All plans</option>
+          <option value="free">Free</option>
+          <option value="pro">Pro</option>
+          <option value="ai">Pro+AI</option>
+          <option value="team">Team</option>
+        </select>
+        <select id="user-susp-filter">
+          <option value="">All statuses</option>
+          <option value="false">Active</option>
+          <option value="true">Suspended</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="user-search-btn">Search</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Plan</th>
+              <th>EULA</th>
+              <th>Joined</th>
+              <th>Last seen</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+            <tr><td colspan="7" class="loading">Loading…</td></tr>
+          </tbody>
+        </table>
+        <div class="pagination" id="users-pagination" style="display:none">
+          <span id="users-page-info"></span>
+          <div class="page-btns">
+            <button class="btn btn-ghost btn-sm" id="users-prev">← Prev</button>
+            <button class="btn btn-ghost btn-sm" id="users-next">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Billing tab ── -->
+    <div id="tab-billing" class="tab-panel">
+      <div class="stat-grid" id="billing-stat-grid">
+        <div class="loading">Loading…</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="table-wrap" style="padding:20px">
+          <div class="section-title" style="margin-bottom:14px">Plan Distribution</div>
+          <div class="plan-bars" id="plan-bars"></div>
+        </div>
+        <div class="table-wrap" style="padding:20px">
+          <div class="section-title" style="margin-bottom:14px">Revenue Breakdown</div>
+          <div id="revenue-breakdown" style="font-size:13px;color:var(--muted)">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EULA tab ── -->
+    <div id="tab-eula" class="tab-panel">
+      <div class="eula-stats" id="eula-stat-grid">
+        <div class="loading" style="grid-column:1/-1">Loading…</div>
+      </div>
+
+      <div class="section-header">
+        <span class="section-title">Users Without EULA Acceptance</span>
+        <button class="btn btn-ghost btn-sm" id="eula-export-btn">⬇ Export CSV</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Plan</th>
+              <th>Joined</th>
+              <th>EULA Status</th>
+            </tr>
+          </thead>
+          <tbody id="eula-tbody">
+            <tr><td colspan="4" class="loading">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Maintenance tab ── -->
+    <div id="tab-maintenance" class="tab-panel">
+
+      <div class="maint-card">
+        <h3>🔔 Extension Banner</h3>
+        <label for="banner-input">Banner message — shown to all active extension users</label>
+        <textarea id="banner-input" placeholder="e.g. We're performing maintenance tonight from 10pm–midnight PT. Commands may be temporarily unavailable."></textarea>
+        <p style="font-size:11px;color:var(--muted);margin-top:6px">Leave blank to clear the banner.</p>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">🚨 Maintenance Mode</div>
+            <div class="toggle-desc">Disables command execution in the extension. Users see a maintenance message instead.</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="maint-mode-toggle" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="maint-actions">
+          <button class="btn btn-primary" id="maint-save-btn">Save Changes</button>
+          <button class="btn btn-ghost" id="maint-clear-btn">Clear Banner</button>
+        </div>
+        <div class="maint-feedback" id="maint-feedback"></div>
+      </div>
+
+      <div class="maint-card">
+        <h3>📡 Current Config (live)</h3>
+        <div id="maint-current" style="font-size:13px;color:var(--muted)">Loading…</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// Config — update SUPABASE_URL and SUPABASE_ANON_KEY to match your project
+// ────────────────────────────────────────────────────────────────────────────
+const SUPABASE_URL      = 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+const FUNCTIONS_URL     = `${SUPABASE_URL}/functions/v1`;
+
+let currentSession = null;
+
+// ── Auth helpers ─────────────────────────────────────────────────────────────
+
+async function supabasePost(path, body, token) {
+  const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${SUPABASE_URL}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  return res.json();
+}
+
+async function fnGet(name, params, token) {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  const res = await fetch(`${FUNCTIONS_URL}/${name}${qs}`, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return res.json();
+}
+
+async function fnPost(name, body, token) {
+  const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+async function fnPatch(name, body, token) {
+  const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
+    method: 'PATCH',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+// ── Sign in ───────────────────────────────────────────────────────────────────
+
+document.getElementById('auth-submit').addEventListener('click', signIn);
+document.getElementById('auth-password').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
+
+async function signIn() {
+  const email    = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl    = document.getElementById('auth-error');
+  const btn      = document.getElementById('auth-submit');
+
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    const data = await supabasePost('/auth/v1/token?grant_type=password', { email, password });
+    if (data.error || !data.access_token) {
+      errEl.textContent = data.error_description || data.error || 'Sign in failed.';
+      return;
+    }
+
+    // Verify admin
+    const statsData = await fnGet('admin-stats', {}, data.access_token);
+    if (statsData.error === 'Admin access required') {
+      errEl.textContent = 'This account does not have admin access.';
+      return;
+    }
+    if (statsData.error) {
+      errEl.textContent = statsData.error;
+      return;
+    }
+
+    currentSession = data;
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('admin-email-display').textContent = email;
+
+    initApp(statsData);
+  } catch (e) {
+    errEl.textContent = 'Network error. Check your connection.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+document.getElementById('signout-btn').addEventListener('click', () => {
+  currentSession = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('auth-password').value = '';
+});
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+  });
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+function initApp(stats) {
+  renderUsersStats(stats);
+  renderBillingStats(stats);
+  renderEulaStats(stats);
+  loadUsers();
+  loadEulaTable();
+  loadMaintenance();
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function fmtDateShort(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
+  if (diff < 604800000) return `${Math.floor(diff/86400000)}d ago`;
+  return fmtDate(iso);
+}
+
+function planBadge(tier) {
+  const map = { free: 'badge-free', pro: 'badge-pro', ai: 'badge-ai', team: 'badge-team' };
+  const labels = { free: 'Free', pro: 'Pro', ai: 'Pro+AI', team: 'Team' };
+  return `<span class="badge ${map[tier] || 'badge-free'}">${labels[tier] || tier}</span>`;
+}
+
+// ── Users tab ─────────────────────────────────────────────────────────────────
+
+let usersPage = 0;
+let usersTotal = 0;
+const USERS_LIMIT = 50;
+
+function renderUsersStats(stats) {
+  document.getElementById('users-stat-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value">${stats.totalUsers.toLocaleString()}</div></div>
+    <div class="stat-card green"><div class="stat-label">New This Month</div><div class="stat-value">${stats.newThisMonth}</div></div>
+    <div class="stat-card ${stats.suspendedCount > 0 ? 'red' : ''}"><div class="stat-label">Suspended</div><div class="stat-value">${stats.suspendedCount}</div></div>
+    <div class="stat-card"><div class="stat-label">Admins</div><div class="stat-value">${stats.adminCount}</div></div>
+    <div class="stat-card ${stats.pastDueCount > 0 ? 'yellow' : ''}"><div class="stat-label">Past Due</div><div class="stat-value">${stats.pastDueCount}</div><div class="stat-sub">Failed payments</div></div>
+  `;
+}
+
+async function loadUsers(page = 0) {
+  usersPage = page;
+  const search = document.getElementById('user-search').value.trim();
+  const plan   = document.getElementById('user-plan-filter').value;
+  const susp   = document.getElementById('user-susp-filter').value;
+
+  document.getElementById('users-tbody').innerHTML = '<tr><td colspan="7" class="loading">Loading…</td></tr>';
+
+  const params = { page, limit: USERS_LIMIT };
+  if (search) params.search = search;
+  if (plan)   params.plan   = plan;
+  if (susp)   params.suspended = susp;
+
+  const data = await fnGet('admin-users', params, currentSession.access_token);
+  if (data.error) {
+    document.getElementById('users-tbody').innerHTML = `<tr><td colspan="7" style="color:var(--red);padding:16px">${data.error}</td></tr>`;
+    return;
+  }
+
+  usersTotal = data.total;
+  document.getElementById('users-count').textContent = `${data.total.toLocaleString()} users`;
+
+  const rows = (data.users ?? []).map(u => `
+    <tr data-id="${u.id}">
+      <td class="mono">${u.email || '—'} ${u.is_admin ? '<span class="badge badge-admin">admin</span>' : ''}</td>
+      <td>${u.full_name || '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${planBadge(u.tier)} ${u.suspended ? '<span class="badge badge-susp">Suspended</span>' : ''}</td>
+      <td>${u.eula_version_accepted
+        ? `<span class="badge badge-ok">v${u.eula_version_accepted}</span>`
+        : '<span class="badge badge-none">Not accepted</span>'}</td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td>${fmtDateShort(u.last_seen_at)}</td>
+      <td>
+        <div class="action-cell">
+          <select class="plan-select" data-id="${u.id}" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+            <option value="">Set plan…</option>
+            <option value="free" ${u.tier==='free'?'selected':''}>Free</option>
+            <option value="pro"  ${u.tier==='pro' ?'selected':''}>Pro</option>
+            <option value="ai"   ${u.tier==='ai'  ?'selected':''}>Pro+AI</option>
+            <option value="team" ${u.tier==='team'?'selected':''}>Team</option>
+          </select>
+          <button class="btn btn-sm ${u.suspended ? 'btn-ghost' : 'btn-danger'} susp-btn" data-id="${u.id}" data-suspended="${u.suspended}">
+            ${u.suspended ? 'Unsuspend' : 'Suspend'}
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('users-tbody').innerHTML = rows || '<tr><td colspan="7" style="color:var(--muted);padding:20px;text-align:center">No users found</td></tr>';
+
+  // Wire plan selects
+  document.querySelectorAll('.plan-select').forEach(sel => {
+    sel.addEventListener('change', async (e) => {
+      const plan = e.target.value;
+      if (!plan) return;
+      await userAction(e.target.dataset.id, 'set_plan', plan);
+      e.target.blur();
+    });
+  });
+
+  // Wire suspend buttons
+  document.querySelectorAll('.susp-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const isSusp = btn.dataset.suspended === 'true';
+      await userAction(btn.dataset.id, isSusp ? 'unsuspend' : 'suspend');
+    });
+  });
+
+  // Pagination
+  const pag = document.getElementById('users-pagination');
+  const pageInfo = document.getElementById('users-page-info');
+  pag.style.display = 'flex';
+  const start = page * USERS_LIMIT + 1;
+  const end   = Math.min((page + 1) * USERS_LIMIT, usersTotal);
+  pageInfo.textContent = `${start}–${end} of ${usersTotal.toLocaleString()}`;
+  document.getElementById('users-prev').disabled = page === 0;
+  document.getElementById('users-next').disabled = end >= usersTotal;
+}
+
+async function userAction(userId, action, value) {
+  const data = await fnPatch('admin-users', { userId, action, value }, currentSession.access_token);
+  if (data.error) { alert(data.error); return; }
+  loadUsers(usersPage);
+}
+
+document.getElementById('user-search-btn').addEventListener('click', () => loadUsers(0));
+document.getElementById('user-search').addEventListener('keydown', e => { if (e.key === 'Enter') loadUsers(0); });
+document.getElementById('users-prev').addEventListener('click', () => loadUsers(usersPage - 1));
+document.getElementById('users-next').addEventListener('click', () => loadUsers(usersPage + 1));
+
+// ── Billing tab ───────────────────────────────────────────────────────────────
+
+function renderBillingStats(stats) {
+  const arr = stats.mrr;
+  document.getElementById('billing-stat-grid').innerHTML = `
+    <div class="stat-card green"><div class="stat-label">Est. MRR</div><div class="stat-value">$${stats.mrr.toLocaleString()}</div><div class="stat-sub">Monthly recurring revenue</div></div>
+    <div class="stat-card"><div class="stat-label">Paid Users</div><div class="stat-value">${((stats.planCounts.pro||0)+(stats.planCounts.ai||0)+(stats.planCounts.team||0)).toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">Team Seats</div><div class="stat-value">${stats.totalTeamSeats}</div><div class="stat-sub">Across all teams</div></div>
+    <div class="stat-card ${stats.pastDueCount>0?'red':''}"><div class="stat-label">Past Due</div><div class="stat-value">${stats.pastDueCount}</div><div class="stat-sub">Failed payment</div></div>
+  `;
+
+  const total = stats.totalUsers || 1;
+  const plans = ['free','pro','ai','team'];
+  const colors = ['free','pro','ai','team'];
+  document.getElementById('plan-bars').innerHTML = plans.map((p, i) => {
+    const count = stats.planCounts[p] || 0;
+    const pct   = Math.round((count / total) * 100);
+    return `<div class="plan-bar-row">
+      <div class="plan-bar-label">${p === 'ai' ? 'Pro+AI' : p.charAt(0).toUpperCase()+p.slice(1)}</div>
+      <div class="plan-bar-track"><div class="plan-bar-fill ${colors[i]}" style="width:${pct}%"></div></div>
+      <div class="plan-bar-count">${count}</div>
+    </div>`;
+  }).join('');
+
+  const proRev  = (stats.planCounts.pro||0) * 10;
+  const aiRev   = (stats.planCounts.ai||0)  * 20;
+  const teamRev = stats.totalTeamSeats * 12;
+  document.getElementById('revenue-breakdown').innerHTML = `
+    <table style="width:100%;border-collapse:collapse">
+      <tr><td style="padding:6px 0;color:var(--muted)">Pro ($10/mo)</td><td style="text-align:right;color:var(--text)">$${proRev.toLocaleString()}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--muted)">Pro+AI ($20/mo)</td><td style="text-align:right;color:var(--text)">$${aiRev.toLocaleString()}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--muted)">Team ($12/seat)</td><td style="text-align:right;color:var(--text)">$${teamRev.toLocaleString()}</td></tr>
+      <tr style="border-top:1px solid var(--border)">
+        <td style="padding:10px 0 4px;font-weight:600;color:var(--text)">Total MRR</td>
+        <td style="text-align:right;font-weight:700;color:var(--green);font-size:16px;padding:10px 0 4px">$${stats.mrr.toLocaleString()}</td>
+      </tr>
+    </table>
+  `;
+}
+
+// ── EULA tab ──────────────────────────────────────────────────────────────────
+
+function renderEulaStats(stats) {
+  const e = stats.eulaCompliance;
+  document.getElementById('eula-stat-grid').innerHTML = `
+    <div class="stat-card green"><div class="stat-label">Accepted</div><div class="stat-value">${e.accepted}</div></div>
+    <div class="stat-card ${e.pct < 80 ? 'yellow' : ''}"><div class="stat-label">Compliance Rate</div><div class="stat-value">${e.pct}%</div><div class="progress-bar"><div class="progress-fill" style="width:${e.pct}%"></div></div></div>
+    <div class="stat-card ${e.total-e.accepted > 0 ? 'red' : ''}"><div class="stat-label">Not Accepted</div><div class="stat-value">${e.total - e.accepted}</div></div>
+  `;
+}
+
+async function loadEulaTable() {
+  const data = await fnGet('admin-users', { limit: 200, page: 0 }, currentSession.access_token);
+  const nonAccepted = (data.users || []).filter(u => !u.eula_version_accepted);
+
+  document.getElementById('eula-tbody').innerHTML = nonAccepted.length === 0
+    ? '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:24px">🎉 All users have accepted the EULA</td></tr>'
+    : nonAccepted.map(u => `
+        <tr>
+          <td class="mono">${u.email}</td>
+          <td>${planBadge(u.tier)}</td>
+          <td>${fmtDate(u.created_at)}</td>
+          <td><span class="badge badge-none">Not accepted</span></td>
+        </tr>
+      `).join('');
+
+  document.getElementById('eula-export-btn').onclick = () => {
+    const all = (data.users || []);
+    const csv = ['Email,Name,Plan,Joined,EULA Version,EULA Accepted At',
+      ...all.map(u => [u.email, u.full_name||'', u.tier, u.created_at?.split('T')[0]||'', u.eula_version_accepted||'', ''].join(','))
+    ].join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = `cannediq-eula-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+}
+
+// ── Maintenance tab ───────────────────────────────────────────────────────────
+
+async function loadMaintenance() {
+  const data = await fetch(`${FUNCTIONS_URL}/admin-maintenance`).then(r => r.json());
+  document.getElementById('banner-input').value    = data.banner_message || '';
+  document.getElementById('maint-mode-toggle').checked = !!data.maintenance_mode;
+  renderMaintenanceCurrent(data);
+}
+
+function renderMaintenanceCurrent(data) {
+  document.getElementById('maint-current').innerHTML = `
+    <div style="margin-bottom:8px"><strong style="color:var(--text)">Banner:</strong> ${data.banner_message ? `<em style="color:var(--yellow)">"${data.banner_message}"</em>` : '<span style="color:var(--muted)">None</span>'}</div>
+    <div><strong style="color:var(--text)">Maintenance mode:</strong> ${data.maintenance_mode ? '<span style="color:var(--red)">🚨 ON</span>' : '<span style="color:var(--green)">✓ Off</span>'}</div>
+    ${data.updated_at ? `<div style="margin-top:8px;font-size:11px;color:var(--muted)">Last updated ${fmtDateShort(data.updated_at)}</div>` : ''}
+  `;
+}
+
+document.getElementById('maint-save-btn').addEventListener('click', async () => {
+  const btn   = document.getElementById('maint-save-btn');
+  const fb    = document.getElementById('maint-feedback');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  fb.textContent = '';
+
+  const body = {
+    banner_message:   document.getElementById('banner-input').value.trim() || null,
+    maintenance_mode: document.getElementById('maint-mode-toggle').checked,
+  };
+
+  const data = await fnPost('admin-maintenance', body, currentSession.access_token);
+  btn.disabled = false;
+  btn.textContent = 'Save Changes';
+
+  if (data.error) {
+    fb.style.color = 'var(--red)';
+    fb.textContent = data.error;
+  } else {
+    fb.style.color = 'var(--green)';
+    fb.textContent = '✓ Saved — extension will pick up changes within 30 minutes.';
+    renderMaintenanceCurrent(data.config);
+    setTimeout(() => { fb.textContent = ''; }, 5000);
+  }
+});
+
+document.getElementById('maint-clear-btn').addEventListener('click', async () => {
+  document.getElementById('banner-input').value = '';
+  document.getElementById('maint-save-btn').click();
+});
+</script>
+</body>
+</html>

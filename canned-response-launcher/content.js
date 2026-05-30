@@ -688,6 +688,73 @@
       sendResponse({ ok: true });
       return true;
     }
+
+    if (msg.type === 'MAINTENANCE_UPDATE') {
+      applyMaintenanceConfig(msg.config);
+      sendResponse({ ok: true });
+      return true;
+    }
+  });
+
+  // ─── Maintenance banner ───────────────────────────────────────────────────────
+
+  const BANNER_ID = 'crl-maintenance-banner';
+
+  function applyMaintenanceConfig(config) {
+    if (!config) return;
+    const { bannerMessage, maintenanceMode } = config;
+
+    // Remove existing banner
+    document.getElementById(BANNER_ID)?.remove();
+
+    const message = bannerMessage || (maintenanceMode ? '⚠️ cannedIQ is currently undergoing maintenance. Commands may be temporarily unavailable.' : null);
+    if (!message) return;
+
+    const banner = document.createElement('div');
+    banner.id = BANNER_ID;
+    Object.assign(banner.style, {
+      position:       'fixed',
+      top:            '0',
+      left:           '0',
+      right:          '0',
+      zIndex:         '2147483646',
+      background:     maintenanceMode ? '#7f1d1d' : '#78350f',
+      color:          '#fff',
+      fontSize:       '13px',
+      fontWeight:     '500',
+      padding:        '9px 48px 9px 16px',
+      textAlign:      'center',
+      lineHeight:     '1.4',
+      boxShadow:      '0 2px 8px rgba(0,0,0,0.3)',
+      fontFamily:     '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    });
+    banner.textContent = `⚡ cannedIQ: ${message}`;
+
+    // Dismiss button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    Object.assign(closeBtn.style, {
+      position:   'absolute',
+      right:      '12px',
+      top:        '50%',
+      transform:  'translateY(-50%)',
+      background: 'none',
+      border:     'none',
+      color:      'rgba(255,255,255,0.7)',
+      cursor:     'pointer',
+      fontSize:   '14px',
+      padding:    '4px',
+    });
+    closeBtn.title = 'Dismiss (until next refresh)';
+    closeBtn.addEventListener('click', () => banner.remove());
+    banner.appendChild(closeBtn);
+
+    document.documentElement.appendChild(banner);
+  }
+
+  // Apply any cached config immediately on page load
+  chrome.storage.local.get('maintenanceConfig', ({ maintenanceConfig }) => {
+    if (maintenanceConfig) applyMaintenanceConfig(maintenanceConfig);
   });
 
 })();

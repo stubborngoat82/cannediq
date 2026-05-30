@@ -654,6 +654,83 @@ kbd {
   transition: width 0.3s ease;
 }
 
+/* ── Seat adjuster (owner-only stepper) ───────────────────────── */
+.seat-adjuster {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+.seat-adjuster-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.seat-adjuster-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+.seat-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seat-step-btn {
+  background: #f3f4f6;
+  border: none;
+  width: 30px;
+  height: 28px;
+  font-size: 16px;
+  line-height: 1;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.seat-step-btn:hover:not(:disabled) { background: #e5e7eb; }
+.seat-step-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.seat-step-count {
+  min-width: 36px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  padding: 0 4px;
+  background: #fff;
+  height: 28px;
+  line-height: 28px;
+  border-left: 1px solid #d1d5db;
+  border-right: 1px solid #d1d5db;
+}
+.seat-save-btn {
+  background: #4f46e5 !important;
+  color: #fff !important;
+  border: none !important;
+}
+.seat-save-btn:hover:not(:disabled) { background: #4338ca !important; }
+.seat-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.seat-adjuster-hint {
+  font-size: 11.5px;
+  font-style: italic;
+  min-height: 16px;
+}
+
 .team-members-title {
   font-size: 12px;
   font-weight: 700;

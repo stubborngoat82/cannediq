@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CRL — Command Launcher</title>
+  <title>cannedIQ — Command Launcher</title>
   <link rel="stylesheet" href="options.css" />
+  <link rel="stylesheet" href="eula-modal.css" />
 </head>
 <body>
   <div class="page">
@@ -12,7 +13,7 @@
     <!-- ── Header ── -->
     <header class="page-header">
       <div class="page-header-left">
-        <div class="page-logo"><span class="page-logo-icon">⚡</span><span>CRL</span></div>
+        <div class="page-logo"><span class="page-logo-icon">⚡</span><span>cannedIQ</span></div>
         <p class="subtitle">Your responses. On command. &nbsp;·&nbsp; <kbd>Ctrl+Space</kbd> to launch.</p>
       </div>
       <div id="account-widget" class="account-widget"></div>
@@ -554,6 +555,36 @@
     </div>
   </div>
 
+  <!-- EULA acceptance — shown to users who have not yet accepted the current version -->
+  <div id="modal-eula" hidden>
+    <div class="modal-box--eula" role="dialog" aria-modal="true" aria-labelledby="eula-title">
+
+      <div class="eula-header">
+        <h2 id="eula-title">⚡ cannedIQ — End User License Agreement</h2>
+        <p class="eula-subtitle">Ah Push It LLC &middot; Version 1.0 &middot; Effective May 26, 2026</p>
+        <p class="eula-intro">Please read the full agreement. The Accept button unlocks once you reach the bottom.</p>
+      </div>
+
+      <div id="eula-body" class="eula-body">
+        <!-- Populated by eula-modal.js -->
+      </div>
+
+      <div class="eula-footer">
+        <div id="eula-decline-msg" hidden>
+          If you do not agree to these terms, please uninstall cannedIQ from
+          <strong>chrome://extensions</strong> to stop using the Extension.
+        </div>
+        <div class="eula-actions">
+          <a href="#" id="eula-decline-link" class="eula-decline-link">I do not agree</a>
+          <button id="eula-accept-btn" class="btn btn-primary" disabled>
+            Scroll to bottom to accept ↓
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Force password change — shown to provisioned members on first login -->
   <div id="modal-change-password" class="modal" hidden>
     <div class="modal-backdrop"></div>
@@ -579,6 +610,7 @@
   <script src="auth.js"></script>
   <script src="api-client.js"></script>
   <script src="core/storage.js"></script>
+  <script src="eula-modal.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
