@@ -29,7 +29,9 @@ const Api = (() => {
 
     if (res.status === 204) return null;
 
-    const data = await res.json();
+    const text = await res.text();
+    if (!text) return null;
+    const data = JSON.parse(text);
     if (!res.ok) {
       throw new ApiError(data.message ?? data.error ?? 'API error', res.status, data);
     }

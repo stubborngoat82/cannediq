@@ -233,6 +233,31 @@ const Auth = (() => {
     return data;
   }
 
+  /**
+   * Send a password-reset email via Supabase Auth.
+   * Supabase emails a magic link that redirects to RESET_PASSWORD_URL.
+   * No session required — works from the logged-out state.
+   */
+  async function sendPasswordReset(email) {
+    const res = await fetch(`${AUTH_URL}/recover`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey':       SUPABASE_ANON,
+      },
+      body: JSON.stringify({
+        email,
+        gotrue_meta_security: {},
+        redirectTo: 'https://cannediq.com/reset-password',
+      }),
+    });
+    // Supabase returns 200 even if the email isn't found (security best practice)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error_description || data.msg || 'Failed to send reset email');
+    }
+  }
+
   // ── Helpers ────────────────────────────────────────────────
 
   /**
@@ -275,5 +300,6 @@ const Auth = (() => {
     signOut,
     getUser,
     updatePassword,
+    sendPasswordReset,
   };
 })();

@@ -16,9 +16,10 @@
   let currentProfile = null;
 
   // Commands tab
-  let allCommands    = [];
+  let allCommands    = [];       // personal commands only (no _isTeam)
   let allStacks      = [];
-  let selectedStack  = 'all';    // 'all' or stack id
+  let teamGroups     = {};       // { [teamId]: { name, color, icon, cmds[] } }
+  let selectedStack  = 'all';   // 'all' | personal stack id | 'team:<teamId>'
   let filterQuery    = '';
   let editingCmd     = null;     // command being edited (null = new)
 
@@ -257,6 +258,76 @@
   function clearAuthError()   { const el = document.getElementById('auth-error'); el.hidden = true; el.textContent = ''; }
   function setAuthLoading(on) { document.getElementById('auth-submit').disabled = on; document.getElementById('btn-google').disabled = on; }
 
+  // ── Forgot password ──────────────────────────────────────────────────────────
+
+  (function wireForgotPassword() {
+    const btnForgot    = document.getElementById('btn-forgot-pw');
+    const btnBack      = document.getElementById('btn-back-to-signin');
+    const panel        = document.getElementById('forgot-pw-panel');
+    const authForm     = document.getElementById('auth-form');
+    const authTabs     = document.querySelector('.auth-tabs');
+    const submitBtn    = document.getElementById('forgot-pw-submit');
+    const emailInput   = document.getElementById('forgot-pw-email');
+    const errorEl      = document.getElementById('forgot-pw-error');
+    const successEl    = document.getElementById('forgot-pw-success');
+
+    if (!btnForgot) return;
+
+    function showForgotPanel() {
+      authForm.hidden    = true;
+      if (authTabs) authTabs.hidden = true;
+      panel.hidden       = false;
+      successEl.hidden   = true;
+      errorEl.hidden     = true;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send reset link';
+      // Pre-fill email if already typed
+      const typed = document.getElementById('auth-email')?.value.trim();
+      if (typed) emailInput.value = typed;
+      emailInput.focus();
+    }
+
+    function showSignInPanel() {
+      panel.hidden    = true;
+      authForm.hidden = false;
+      if (authTabs) authTabs.hidden = false;
+    }
+
+    btnForgot.addEventListener('click', showForgotPanel);
+    btnBack.addEventListener('click', showSignInPanel);
+
+    submitBtn.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      errorEl.hidden = true;
+      successEl.hidden = true;
+
+      if (!email) {
+        errorEl.textContent = 'Please enter your email address.';
+        errorEl.hidden = false;
+        emailInput.focus();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+
+      try {
+        await Auth.sendPasswordReset(email);
+        successEl.hidden = false;
+        submitBtn.textContent = 'Sent!';
+      } catch (e) {
+        errorEl.textContent = e.message || 'Failed to send reset email. Please try again.';
+        errorEl.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send reset link';
+      }
+    });
+
+    emailInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitBtn.click();
+    });
+  })();
+
   // ─── Tab navigation ─────────────────────────────────────────────────────────
 
   // ── Onboarding modal ───────────────────────────────────────────────────────────
@@ -373,10 +444,35 @@
   }
 
   async function loadCommandsTab() {
-    [allCommands, allStacks] = await Promise.all([
+    const [rawCmds, stacks] = await Promise.all([
       CRLStorage.getCommands(),
       CRLStorage.getStacks(),
     ]);
+
+    // Separate personal commands from team-synced commands
+    allCommands = rawCmds.filter((c) => !c._isTeam);
+    allStacks   = stacks;
+
+    // Group team commands by team for the read-only sidebar section
+    teamGroups = {};
+    rawCmds.filter((c) => c._isTeam).forEach((c) => {
+      const key = c._teamId ?? 'unknown';
+      if (!teamGroups[key]) {
+        teamGroups[key] = {
+          name:  c._stackName  ?? 'Team Library',
+          color: c._stackColor ?? '#7c3aed',
+          icon:  c._stackIcon  ?? '🏢',
+          cmds:  [],
+        };
+      }
+      teamGroups[key].cmds.push(c);
+    });
+
+    // Reset selection to personal view if previously on a team that no longer exists
+    if (selectedStack.startsWith('team:') && !teamGroups[selectedStack.slice(5)]) {
+      selectedStack = 'all';
+    }
+
     renderStackSidebar();
     renderCommandList();
   }
@@ -387,9 +483,11 @@
     const list = document.getElementById('stack-list');
     list.innerHTML = '';
 
-    const makeItem = (id, name, color, count) => {
+    const isTeamView = selectedStack.startsWith('team:');
+
+    const makeItem = (id, name, color, count, opts = {}) => {
       const li = document.createElement('li');
-      li.className = 'stack-item' + (selectedStack === id ? ' active' : '');
+      li.className = 'stack-item' + (selectedStack === id ? ' active' : '') + (opts.readOnly ? ' stack-item--team' : '');
       li.dataset.id = id;
       li.innerHTML = `
         <span class="stack-dot" style="background:${color || '#9ca3af'}"></span>
@@ -403,8 +501,9 @@
       return li;
     };
 
+    // ── Personal section ──────────────────────────────────────────────────────
     const allCount = allCommands.length;
-    list.appendChild(makeItem('all', 'All', '#9ca3af', allCount));
+    list.appendChild(makeItem('all', 'All My Commands', '#9ca3af', allCount));
 
     allStacks.forEach((s) => {
       const count = allCommands.filter((c) => c.stackId === s.id).length;
@@ -419,13 +518,61 @@
       actions.querySelector('[data-action="edit"]').addEventListener('click', (e) => { e.stopPropagation(); openStackModal(s); });
       actions.querySelector('[data-action="del"]').addEventListener('click',  (e) => { e.stopPropagation(); deleteStack(s.id, s.name); });
       li.appendChild(actions);
-
       list.appendChild(li);
     });
 
-    // Update panel title
-    const stack = allStacks.find((s) => s.id === selectedStack);
-    document.getElementById('cmd-panel-title').textContent = stack ? stack.name : 'All Commands';
+    // ── Team libraries section (read-only) ────────────────────────────────────
+    if (Object.keys(teamGroups).length > 0) {
+      const divider = document.createElement('li');
+      divider.className = 'stack-divider';
+      divider.textContent = 'Team Libraries';
+      list.appendChild(divider);
+
+      Object.entries(teamGroups).forEach(([teamId, group]) => {
+        const id = `team:${teamId}`;
+        const li = makeItem(id, group.name, group.color, group.cmds.length, { readOnly: true });
+        // Add a small lock icon to indicate read-only
+        const lock = document.createElement('span');
+        lock.className = 'stack-readonly-badge';
+        lock.title = 'Shared by team admin — read only';
+        lock.textContent = '🔒';
+        li.appendChild(lock);
+        list.appendChild(li);
+      });
+    }
+
+    // ── Panel title ───────────────────────────────────────────────────────────
+    let panelTitle = 'All Commands';
+    if (isTeamView) {
+      const teamId = selectedStack.slice(5);
+      panelTitle = teamGroups[teamId]?.name ?? 'Team Library';
+    } else {
+      const stack = allStacks.find((s) => s.id === selectedStack);
+      panelTitle = stack ? stack.name : 'All My Commands';
+    }
+    document.getElementById('cmd-panel-title').textContent = panelTitle;
+
+    // Show/hide "New Command" and "New Stack" buttons based on view mode
+    const newCmdBtn   = document.getElementById('btn-new-cmd');
+    const newStackBtn = document.getElementById('btn-new-stack');
+    if (newCmdBtn)   newCmdBtn.style.display   = isTeamView ? 'none' : '';
+    if (newStackBtn) newStackBtn.style.display = isTeamView ? 'none' : '';
+
+    // Show read-only notice on panel if in team view
+    let noticeEl = document.getElementById('team-readonly-notice');
+    if (isTeamView) {
+      if (!noticeEl) {
+        noticeEl = document.createElement('div');
+        noticeEl.id = 'team-readonly-notice';
+        noticeEl.className = 'team-readonly-notice';
+        noticeEl.textContent = '🔒 These commands are managed by your team admin. Contact your admin to make changes.';
+        const panel = document.getElementById('cmd-list')?.parentElement;
+        if (panel) panel.insertBefore(noticeEl, panel.firstChild);
+      }
+      noticeEl.style.display = '';
+    } else if (noticeEl) {
+      noticeEl.style.display = 'none';
+    }
   }
 
   // ── Command list ─────────────────────────────────────────────────────────────
@@ -437,8 +584,17 @@
     const container = document.getElementById('cmd-list');
     container.innerHTML = '';
 
-    let cmds = allCommands.filter((cmd) => {
-      if (selectedStack !== 'all' && cmd.stackId !== selectedStack) return false;
+    const isTeamView = selectedStack.startsWith('team:');
+    const teamId     = isTeamView ? selectedStack.slice(5) : null;
+
+    // Source: personal commands or team commands
+    const sourceList = isTeamView
+      ? (teamGroups[teamId]?.cmds ?? [])
+      : allCommands;
+
+    let cmds = sourceList.filter((cmd) => {
+      // Stack filter only applies in personal view
+      if (!isTeamView && selectedStack !== 'all' && cmd.stackId !== selectedStack) return false;
       if (!filterQuery) return true;
       return (
         cmd.name.toLowerCase().includes(filterQuery) ||
@@ -448,11 +604,13 @@
       );
     });
 
-    // Favorites first, then usage
-    cmds.sort((a, b) => {
-      if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
-      return (b.usageCount || 0) - (a.usageCount || 0);
-    });
+    // Favorites first (personal only), then usage
+    if (!isTeamView) {
+      cmds.sort((a, b) => {
+        if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+        return (b.usageCount || 0) - (a.usageCount || 0);
+      });
+    }
 
     document.getElementById('cmd-panel-count').textContent = cmds.length;
 
@@ -461,24 +619,28 @@
       empty.className = 'cmd-empty';
       empty.innerHTML = filterQuery
         ? `No commands match "<strong>${escHtml(filterQuery)}</strong>"`
-        : selectedStack === 'all'
-          ? 'No commands yet. Click <strong>+ New Command</strong> to create your first.'
-          : 'No commands in this stack yet.';
+        : isTeamView
+          ? 'No team commands have been published yet.'
+          : selectedStack === 'all'
+            ? 'No commands yet. Click <strong>+ New Command</strong> to create your first.'
+            : 'No commands in this stack yet.';
       container.appendChild(empty);
       return;
     }
 
     cmds.forEach((cmd) => {
-      const stack = allStacks.find((s) => s.id === cmd.stackId);
-      const triggers = (cmd.triggers || []).map((t) => t.value).join('  ');
+      const stack = isTeamView
+        ? { name: teamGroups[teamId]?.name ?? 'Team', color: teamGroups[teamId]?.color }
+        : allStacks.find((s) => s.id === cmd.stackId);
+      const triggers  = (cmd.triggers || []).map((t) => t.value).join('  ');
       const typeClass = TYPE_CLASS[cmd.commandType] || '';
       const typeLabel = TYPE_LABEL[cmd.commandType] || cmd.commandType;
 
       const card = document.createElement('div');
-      card.className = 'cmd-card';
+      card.className = 'cmd-card' + (isTeamView ? ' cmd-card--readonly' : '');
       card.innerHTML = `
         <div class="cmd-card-left">
-          ${cmd.favorite ? '<span class="cmd-star">★</span>' : ''}
+          ${(!isTeamView && cmd.favorite) ? '<span class="cmd-star">★</span>' : ''}
           <div class="cmd-card-body">
             <div class="cmd-card-name">${escHtml(cmd.name)}</div>
             <div class="cmd-card-preview">${escHtml((cmd.description || cmd.template || '').slice(0, 80))}</div>
@@ -488,14 +650,19 @@
           ${triggers ? `<code class="cmd-trigger-hint">${escHtml(triggers)}</code>` : ''}
           ${stack ? `<span class="cmd-stack-badge" style="color:${stack.color || '#6b7280'}">${escHtml(stack.name)}</span>` : ''}
           <span class="cmd-type-badge cmd-type-${typeClass}">${typeLabel}</span>
-          <div class="cmd-card-actions">
-            <button class="btn btn-ghost btn-xs btn-edit-cmd" title="Edit">Edit</button>
-            <button class="btn btn-danger btn-xs btn-del-cmd" title="Delete">✕</button>
-          </div>
+          ${isTeamView
+            ? `<span class="cmd-readonly-badge" title="Managed by team admin">🔒</span>`
+            : `<div class="cmd-card-actions">
+                <button class="btn btn-ghost btn-xs btn-edit-cmd" title="Edit">Edit</button>
+                <button class="btn btn-danger btn-xs btn-del-cmd" title="Delete">✕</button>
+               </div>`
+          }
         </div>`;
 
-      card.querySelector('.btn-edit-cmd').addEventListener('click', () => openCommandModal(cmd));
-      card.querySelector('.btn-del-cmd').addEventListener('click',  () => deleteCommand(cmd));
+      if (!isTeamView) {
+        card.querySelector('.btn-edit-cmd').addEventListener('click', () => openCommandModal(cmd));
+        card.querySelector('.btn-del-cmd').addEventListener('click',  () => deleteCommand(cmd));
+      }
       container.appendChild(card);
     });
   }
