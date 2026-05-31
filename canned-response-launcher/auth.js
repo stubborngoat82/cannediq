@@ -248,7 +248,7 @@ const Auth = (() => {
       body: JSON.stringify({
         email,
         gotrue_meta_security: {},
-        redirectTo: 'https://cannediq.com/reset-password',
+        redirectTo: 'https://www.cannediq.com/reset-password',
       }),
     });
     // Supabase returns 200 even if the email isn't found (security best practice)
