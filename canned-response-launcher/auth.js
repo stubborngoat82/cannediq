@@ -239,18 +239,21 @@ const Auth = (() => {
    * No session required — works from the logged-out state.
    */
   async function sendPasswordReset(email) {
-    const res = await fetch(`${AUTH_URL}/recover`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey':       SUPABASE_ANON,
-      },
-      body: JSON.stringify({
-        email,
-        gotrue_meta_security: {},
-        redirectTo: 'https://www.cannediq.com/reset-password',
-      }),
-    });
+    const RESET_URL = 'https://www.cannediq.com/reset-password';
+    const res = await fetch(
+      `${AUTH_URL}/recover?redirect_to=${encodeURIComponent(RESET_URL)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey':       SUPABASE_ANON,
+        },
+        body: JSON.stringify({
+          email,
+          gotrue_meta_security: {},
+        }),
+      }
+    );
     // Supabase returns 200 even if the email isn't found (security best practice)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

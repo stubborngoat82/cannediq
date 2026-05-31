@@ -156,6 +156,33 @@
     .alert { padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; }
     .alert-warn { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
     .alert-danger { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #f87171; }
+
+    /* ── Teams hierarchy ── */
+    .team-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+    .team-group-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; transition: background 0.12s; }
+    .team-group-header:hover { background: rgba(255,255,255,0.03); }
+    .team-expand-btn { font-size: 11px; color: var(--muted); width: 18px; text-align: center; flex-shrink: 0; transition: transform 0.15s; }
+    .team-group.expanded .team-expand-btn { transform: rotate(90deg); }
+    .team-name-col { font-weight: 600; font-size: 14px; flex: 0 0 180px; }
+    .team-owner-col { flex: 1; min-width: 0; }
+    .team-owner-email { font-size: 13px; color: var(--text); font-family: 'SF Mono', monospace; }
+    .team-owner-name  { font-size: 11px; color: var(--muted); }
+    .team-seats-col   { flex: 0 0 110px; font-size: 12px; color: var(--muted); text-align: right; }
+    .team-actions-col { flex: 0 0 120px; display: flex; gap: 4px; justify-content: flex-end; }
+    .team-members-list { border-top: 1px solid var(--border); display: none; }
+    .team-group.expanded .team-members-list { display: block; }
+    .team-member-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 46px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .team-member-row:last-child { border-bottom: none; }
+    .team-member-row:hover { background: rgba(255,255,255,0.02); }
+    .member-role-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+    .member-role-badge.owner  { background: rgba(108,99,255,0.2); color: #a89fff; }
+    .member-role-badge.admin  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .member-role-badge.member { background: rgba(255,255,255,0.06); color: var(--muted); }
+    .member-email { flex: 1; font-size: 12px; font-family: 'SF Mono', monospace; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .member-name  { flex: 0 0 140px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .member-eula  { flex: 0 0 80px; font-size: 11px; }
+    .member-joined { flex: 0 0 100px; font-size: 11px; color: var(--muted); }
+    .teams-loading { text-align: center; padding: 48px; color: var(--muted); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -187,6 +214,7 @@
 
   <div class="tab-nav">
     <button class="tab-btn active" data-tab="users">👥 Users</button>
+    <button class="tab-btn" data-tab="teams">🏢 Teams</button>
     <button class="tab-btn" data-tab="billing">💰 Billing</button>
     <button class="tab-btn" data-tab="eula">📋 EULA</button>
     <button class="tab-btn" data-tab="maintenance">🔧 Maintenance</button>
@@ -247,6 +275,15 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ── Teams tab ── -->
+    <div id="tab-teams" class="tab-panel">
+      <div class="section-header" style="margin-bottom:20px">
+        <span class="section-title">Teams</span>
+        <span id="teams-count" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <div id="teams-list"><div class="teams-loading">Loading…</div></div>
     </div>
 
     <!-- ── Billing tab ── -->
@@ -449,6 +486,128 @@ function initApp(stats) {
   loadUsers();
   loadEulaTable();
   loadMaintenance();
+  loadTeams();
+}
+
+// ── Teams hierarchy ───────────────────────────────────────────────────────────
+
+async function loadTeams() {
+  const listEl = document.getElementById('teams-list');
+  const countEl = document.getElementById('teams-count');
+  listEl.innerHTML = '<div class="teams-loading">Loading…</div>';
+
+  const data = await fnGet('admin-teams', {}, currentSession.access_token);
+  if (data.error) {
+    listEl.innerHTML = `<div class="teams-loading" style="color:var(--red)">${data.error}</div>`;
+    return;
+  }
+
+  const teams = data.teams ?? [];
+  countEl.textContent = `${teams.length} team${teams.length !== 1 ? 's' : ''}`;
+
+  if (!teams.length) {
+    listEl.innerHTML = '<div class="teams-loading">No teams yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = teams.map(team => renderTeamGroup(team)).join('');
+
+  // Wire expand/collapse
+  listEl.querySelectorAll('.team-group-header').forEach(header => {
+    header.addEventListener('click', () => {
+      header.closest('.team-group').classList.toggle('expanded');
+    });
+  });
+
+  // Wire member action buttons
+  listEl.querySelectorAll('.team-user-action').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const { userId, action, value } = btn.dataset;
+      const result = await fnPatch('admin-users', { userId, action, value: value === 'true' ? true : value === 'false' ? false : value }, currentSession.access_token);
+      if (result.error) { alert(result.error); return; }
+      loadTeams();
+    });
+  });
+}
+
+function renderTeamGroup(team) {
+  const owner = team.owner ?? {};
+  const members = team.members ?? [];
+  const seatPct = team.seats_purchased > 0 ? Math.round((team.seats_used / team.seats_purchased) * 100) : 0;
+
+  const memberRows = [
+    // Owner row first (always shown in members list too for context)
+    renderMemberRow({ ...owner, team_role: 'owner' }),
+    ...members.map(m => renderMemberRow(m)),
+  ].join('');
+
+  return `
+    <div class="team-group" data-team-id="${team.id}">
+      <div class="team-group-header">
+        <span class="team-expand-btn">▶</span>
+        <div class="team-name-col">
+          <div style="font-weight:600">${escHtml(team.name)}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmtDate(team.created_at)}</div>
+        </div>
+        <div class="team-owner-col">
+          <div class="team-owner-email">${escHtml(owner.email || '—')}</div>
+          <div class="team-owner-name">${escHtml(owner.full_name || '')} ${owner.suspended ? '<span style="color:var(--red);font-size:10px">● suspended</span>' : ''}</div>
+        </div>
+        <div class="team-seats-col">
+          <div>${team.seats_used} / ${team.seats_purchased} seats</div>
+          <div style="margin-top:4px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${seatPct}%;background:${seatPct > 90 ? 'var(--red)' : 'var(--accent)'};border-radius:2px"></div>
+          </div>
+        </div>
+        <div class="team-actions-col" style="font-size:12px;color:var(--muted)">
+          ${members.length + 1} member${members.length !== 0 ? 's' : ''}
+        </div>
+      </div>
+      <div class="team-members-list">
+        <div style="display:grid;grid-template-columns:46px 100px 1fr 140px 80px 100px 130px;padding:8px 16px 6px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border)">
+          <div></div><div>Role</div><div>Email</div><div>Name</div><div>EULA</div><div>Joined</div><div>Actions</div>
+        </div>
+        ${memberRows}
+      </div>
+    </div>`;
+}
+
+function renderMemberRow(m) {
+  const roleClass = m.team_role === 'owner' ? 'owner' : m.team_role === 'admin' ? 'admin' : 'member';
+  const eulaHtml = m.eula_version_accepted
+    ? `<span class="badge badge-ok" style="font-size:10px">v${m.eula_version_accepted}</span>`
+    : `<span class="badge badge-none" style="font-size:10px">No</span>`;
+
+  return `
+    <div class="team-member-row">
+      <div></div>
+      <div><span class="member-role-badge ${roleClass}">${m.team_role || 'member'}</span></div>
+      <div class="member-email">${escHtml(m.email || '—')} ${m.suspended ? '🚫' : ''}</div>
+      <div class="member-name">${escHtml(m.full_name || '—')}</div>
+      <div class="member-eula">${eulaHtml}</div>
+      <div class="member-joined">${fmtDate(m.joined_at || m.created_at)}</div>
+      <div style="display:flex;gap:4px">
+        <select class="team-user-action" data-user-id="${m.id}" data-action="set_plan"
+          style="padding:3px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px"
+          onchange="if(this.value){fnPatch('admin-users',{userId:'${m.id}',action:'set_plan',value:this.value},currentSession.access_token).then(()=>loadTeams())}">
+          <option value="">Plan…</option>
+          <option value="free" ${m.tier==='free'?'selected':''}>Free</option>
+          <option value="pro" ${m.tier==='pro'?'selected':''}>Pro</option>
+          <option value="ai" ${m.tier==='ai'?'selected':''}>AI</option>
+          <option value="team" ${m.tier==='team'?'selected':''}>Team</option>
+        </select>
+        <button class="btn btn-sm ${m.suspended ? 'btn-ghost' : 'btn-danger'}"
+          onclick="fnPatch('admin-users',{userId:'${m.id}',action:'${m.suspended ? 'unsuspend' : 'suspend'}'},currentSession.access_token).then(()=>loadTeams())"
+          style="font-size:11px;padding:3px 8px">
+          ${m.suspended ? 'Unsuspend' : 'Suspend'}
+        </button>
+      </div>
+    </div>`;
+}
+
+function escHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
