@@ -81,7 +81,6 @@ Deno.serve(async (req) => {
     .from('team_members')
     .select('team_id, user_id, role, created_at')
     .in('team_id', teamIds)
-    .neq('status', 'removed')
     .order('created_at', { ascending: true });
 
   // ── Fetch member profiles ─────────────────────────────────────────────────────
