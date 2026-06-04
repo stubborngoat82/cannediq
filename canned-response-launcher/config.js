@@ -10,7 +10,7 @@ const SUPABASE_URL  = 'https://kihuepwhrftjgmglnxnc.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_j7PL9l3pZCmnPEsLUI10eQ_xYQQyJbW';
 
 // Stripe Customer Portal — shareable link from Stripe Dashboard → Settings → Billing → Customer portal
-const STRIPE_PORTAL_URL = 'https://billing.stripe.com/p/login/test_fZufZh3xh1jh09ifVsgbm00';
+const STRIPE_PORTAL_URL = 'https://billing.stripe.com/p/login/9B6bJ11gD8CO7IE3XMgUM00';
 
 // Derived endpoints — don't edit these
 const AUTH_URL = `${SUPABASE_URL}/auth/v1`;

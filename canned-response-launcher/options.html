@@ -87,6 +87,7 @@
         <button class="tab-btn active" data-tab="commands">Commands</button>
         <button class="tab-btn" data-tab="teams">Teams</button>
         <button class="tab-btn" data-tab="billing">Billing</button>
+        <button class="tab-btn" data-tab="templates">🛒 Templates</button>
         <button class="tab-btn" data-tab="settings">Settings</button>
       </nav>
 
@@ -146,6 +147,29 @@
       <!-- ── Billing tab ── -->
       <div id="tab-billing" class="tab-panel" hidden>
         <div id="billing-content" class="billing-page"><p class="empty-hint">Loading…</p></div>
+      </div>
+
+      <!-- ── Templates tab ── -->
+      <div id="tab-templates" class="tab-panel" hidden>
+        <div class="tpl-store">
+          <div class="tpl-store-header">
+            <div>
+              <h2 class="tpl-store-title">Template Store</h2>
+              <p class="tpl-store-subtitle">Ready-made command packs for your role. Claim free packs instantly — paid packs unlock with one click.</p>
+            </div>
+          </div>
+          <div class="tpl-filters">
+            <button class="tpl-filter-btn active" data-cat="all">All</button>
+            <button class="tpl-filter-btn" data-cat="support">🎧 Support</button>
+            <button class="tpl-filter-btn" data-cat="sales">💼 Sales</button>
+            <button class="tpl-filter-btn" data-cat="recruiting">🧑‍💼 Recruiting</button>
+            <button class="tpl-filter-btn" data-cat="dev">💻 Dev</button>
+            <button class="tpl-filter-btn" data-cat="general">📅 General</button>
+          </div>
+          <div id="tpl-grid" class="tpl-grid">
+            <div class="tpl-loading">Loading templates…</div>
+          </div>
+        </div>
       </div>
 
       <!-- ── Settings tab ── -->

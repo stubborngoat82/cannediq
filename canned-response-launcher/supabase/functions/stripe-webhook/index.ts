@@ -71,7 +71,38 @@ Deno.serve(async (req: Request) => {
           client_reference_id: session.client_reference_id,
           subscription:        session.subscription,
           customer:            session.customer,
+          metadata:            session.metadata,
         });
+
+        // ── Template purchase (one-time payment) ──────────────────────────────
+        if (session.metadata?.type === 'template_purchase') {
+          const packId = session.metadata.pack_id;
+          const userId = session.metadata.supabase_user_id;
+
+          if (packId && userId) {
+            const tplRecord: any = {
+              user_id:                  userId,
+              pack_id:                  packId,
+              purchased_at:             new Date().toISOString(),
+              stripe_payment_intent_id: session.payment_intent as string ?? null,
+            };
+            // If this was a team purchase, record the team_id
+            if (session.metadata?.team_id) tplRecord.team_id = session.metadata.team_id;
+
+            const { error: tplErr } = await supabase
+              .from('user_template_purchases')
+              .upsert(tplRecord, { onConflict: 'user_id,pack_id', ignoreDuplicates: true });
+
+            if (tplErr) {
+              console.error('[stripe-webhook] Failed to record template purchase:', tplErr.message);
+            } else {
+              console.log(`[stripe-webhook] Template purchase recorded: pack=${packId} user=${userId}`);
+            }
+          } else {
+            console.error('[stripe-webhook] Template purchase missing pack_id or user_id in metadata');
+          }
+          break;
+        }
 
         if (session.mode !== 'subscription') break;
 

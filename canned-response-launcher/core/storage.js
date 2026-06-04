@@ -295,6 +295,27 @@ const CRLStorage = (() => {
     await write(data);
   }
 
+  // ── Saved User Variables ─────────────────────────────────────────────────────
+  // Key-value store for variables that auto-fill in templates
+  // (e.g. companyName, agentName, senderTitle).
+
+  async function getUserVariables() {
+    const data = await read();
+    return data.userVariables ?? {};
+  }
+
+  async function saveUserVariables(vars) {
+    const data = await read();
+    data.userVariables = { ...(data.userVariables ?? {}), ...vars };
+    await write(data);
+  }
+
+  async function deleteUserVariable(name) {
+    const data = await read();
+    if (data.userVariables) delete data.userVariables[name];
+    await write(data);
+  }
+
   // ── History ─────────────────────────────────────────────────────────────────
 
   async function appendHistory(record) {
@@ -334,6 +355,9 @@ const CRLStorage = (() => {
     deleteStack,
     getSettings,
     saveSettings,
+    getUserVariables,
+    saveUserVariables,
+    deleteUserVariable,
     appendHistory,
     getHistory,
     genId,

@@ -47,12 +47,25 @@ const CRLVariables = (() => {
     const resolved     = {};
     const needsInput   = [];
 
+    // Load saved user variables (companyName, agentName, etc.)
+    let savedVars = {};
+    try { savedVars = await CRLStorage.getUserVariables(); } catch {}
+
     for (const key of placeholders) {
       if (DYNAMIC_RESOLVERS[key]) {
+        // Dynamic context resolver takes priority
         resolved[key] = DYNAMIC_RESOLVERS[key](context);
+      } else if (savedVars[key] !== undefined && savedVars[key] !== '') {
+        // Saved user variable — auto-fill without prompting
+        resolved[key] = savedVars[key];
       } else {
-        const def = (varDefs || []).find((v) => v.key === key);
-        needsInput.push({ key, def: def || { key, label: key, type: 'text', required: false } });
+        const def = (varDefs || []).find((v) => v.key === key || v.name === key);
+        // Use defaultValue from command definition if present and no saved value
+        if (def?.defaultValue !== undefined && def.defaultValue !== '') {
+          resolved[key] = def.defaultValue;
+        } else {
+          needsInput.push({ key, def: def || { key, label: key, type: 'text', required: false } });
+        }
       }
     }
 

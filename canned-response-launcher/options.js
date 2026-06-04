@@ -115,7 +115,7 @@
 
     // Honour ?tab=billing (or any valid tab) in the URL — used by portal return URL
     const urlTab    = new URLSearchParams(window.location.search).get('tab');
-    const validTabs = ['commands', 'teams', 'billing', 'settings'];
+    const validTabs = ['commands', 'teams', 'billing', 'templates', 'settings'];
     const startTab  = validTabs.includes(urlTab) ? urlTab : 'commands';
     activateTab(startTab);
     if (startTab === 'commands') await loadCommandsTab();
@@ -149,7 +149,7 @@
       document.getElementById('modal-change-password').hidden = true;
       // Now proceed into the app normally
       const urlTab    = new URLSearchParams(window.location.search).get('tab');
-      const validTabs = ['commands', 'teams', 'billing', 'settings'];
+      const validTabs = ['commands', 'teams', 'billing', 'templates', 'settings'];
       const startTab  = validTabs.includes(urlTab) ? urlTab : 'commands';
       activateTab(startTab);
       if (startTab === 'commands') await loadCommandsTab();
@@ -420,9 +420,10 @@
   function activateTab(name) {
     document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
     showTabPanel(name);
-    if (name === 'teams')    loadTeamsTab();
-    if (name === 'billing')  loadBillingTab();
-    if (name === 'settings') loadSettingsTab();
+    if (name === 'teams')     loadTeamsTab();
+    if (name === 'billing')   loadBillingTab();
+    if (name === 'templates') loadTemplatesTab();
+    if (name === 'settings')  loadSettingsTab();
   }
 
   function showTabPanel(name) {
@@ -1909,6 +1910,94 @@
     }
 
     await loadAIUsage();
+    await loadSavedVariables();
+  }
+
+  // ── Saved Variables ──────────────────────────────────────────────────────────
+
+  const SUGGESTED_VARS = [
+    { name: 'companyName',  label: 'Company / Team Name',  hint: 'e.g. Acme Corp' },
+    { name: 'agentName',    label: 'Your Name',             hint: 'e.g. Sarah Johnson' },
+    { name: 'senderTitle',  label: 'Your Job Title',        hint: 'e.g. Customer Success Manager' },
+    { name: 'senderCompany',label: 'Your Company',          hint: 'e.g. Acme Corp' },
+    { name: 'timezone',     label: 'Your Timezone',         hint: 'e.g. ET, PT, GMT' },
+    { name: 'productName',  label: 'Product Name',          hint: 'e.g. Acme Pro' },
+  ];
+
+  async function loadSavedVariables() {
+    const container = document.getElementById('saved-vars-container');
+    if (!container) return;
+    const saved = await CRLStorage.getUserVariables();
+    renderSavedVars(container, saved);
+  }
+
+  function renderSavedVars(container, saved) {
+    const rows = SUGGESTED_VARS.map((s) => {
+      const val = saved[s.name] ?? '';
+      return `
+        <div class="saved-var-row" data-var="${escHtml(s.name)}">
+          <label class="saved-var-label" title="Use as {{${s.name}}} in templates">
+            {{${escHtml(s.name)}}}
+          </label>
+          <input class="saved-var-input" type="text" placeholder="${escHtml(s.hint)}"
+            data-var="${escHtml(s.name)}" value="${escHtml(val)}" />
+          <span class="saved-var-desc">${escHtml(s.label)}</span>
+        </div>`;
+    }).join('');
+
+    // Custom variables (any saved vars not in the suggested list)
+    const suggestedNames = new Set(SUGGESTED_VARS.map((s) => s.name));
+    const customRows = Object.entries(saved)
+      .filter(([k]) => !suggestedNames.has(k))
+      .map(([k, v]) => `
+        <div class="saved-var-row" data-var="${escHtml(k)}">
+          <label class="saved-var-label">{{${escHtml(k)}}}</label>
+          <input class="saved-var-input" type="text" data-var="${escHtml(k)}" value="${escHtml(v)}" />
+          <button class="btn btn-ghost btn-xs saved-var-del" data-var="${escHtml(k)}" title="Delete">✕</button>
+        </div>`).join('');
+
+    container.innerHTML = `
+      <div class="saved-vars-list">${rows}${customRows}</div>
+      <div class="saved-vars-add" style="margin-top:12px;display:flex;gap:8px">
+        <input id="new-var-name" type="text" placeholder="Variable name (e.g. signature)" class="setting-input" style="flex:1" />
+        <button class="btn btn-ghost btn-sm" id="btn-add-var">+ Add</button>
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn btn-primary btn-sm" id="btn-save-vars">Save Variables</button>
+        <span id="saved-vars-feedback" style="font-size:12px;color:#059669;margin-left:10px"></span>
+      </div>`;
+
+    // Wire save
+    container.querySelector('#btn-save-vars').addEventListener('click', async () => {
+      const patch = {};
+      container.querySelectorAll('.saved-var-input').forEach((inp) => {
+        patch[inp.dataset.var] = inp.value.trim();
+      });
+      await CRLStorage.saveUserVariables(patch);
+      const fb = container.querySelector('#saved-vars-feedback');
+      fb.textContent = '✓ Saved';
+      setTimeout(() => { fb.textContent = ''; }, 2500);
+    });
+
+    // Wire delete custom
+    container.querySelectorAll('.saved-var-del').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await CRLStorage.deleteUserVariable(btn.dataset.var);
+        const fresh = await CRLStorage.getUserVariables();
+        renderSavedVars(container, fresh);
+      });
+    });
+
+    // Wire add custom
+    container.querySelector('#btn-add-var').addEventListener('click', async () => {
+      const nameInput = container.querySelector('#new-var-name');
+      const name = nameInput.value.trim().replace(/[^a-zA-Z0-9_]/g, '');
+      if (!name) { nameInput.focus(); return; }
+      const fresh = await CRLStorage.getUserVariables();
+      fresh[name] = '';
+      await CRLStorage.saveUserVariables(fresh);
+      renderSavedVars(container, fresh);
+    });
   }
 
   async function saveSettings() {
@@ -2143,6 +2232,222 @@
 
   function capitalize(str) {
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TEMPLATES TAB
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  let _tplPacks        = [];
+  let _tplActiveCat    = 'all';
+  let _tplLoaded       = false;
+
+  async function loadTemplatesTab() {
+    if (_tplLoaded) return;
+    _tplLoaded = true;
+
+    const urlParams     = new URLSearchParams(window.location.search);
+    const justPurchased = urlParams.get('template_purchased');
+
+    const grid = document.getElementById('tpl-grid');
+    grid.innerHTML = '<div class="tpl-loading">Loading templates…</div>';
+
+    try {
+      _tplPacks = await Api.getTemplatePacks();
+    } catch (e) {
+      grid.innerHTML = `<div class="tpl-loading" style="color:#dc2626">Failed to load: ${escHtml(e.message)}</div>`;
+      return;
+    }
+
+    document.querySelectorAll('.tpl-filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        _tplActiveCat = btn.dataset.cat;
+        document.querySelectorAll('.tpl-filter-btn').forEach((b) =>
+          b.classList.toggle('active', b.dataset.cat === _tplActiveCat));
+        renderTplGrid();
+      });
+    });
+
+    renderTplGrid();
+
+    if (justPurchased) {
+      const pack = _tplPacks.find((p) => p.id === justPurchased);
+      if (pack) {
+        window.history.replaceState(null, '', window.location.pathname + '?tab=templates');
+        await applyTemplatePack(justPurchased, pack.name, true);
+        renderTplGrid();
+      }
+    }
+  }
+
+  function renderTplGrid() {
+    const grid  = document.getElementById('tpl-grid');
+    const packs = _tplActiveCat === 'all'
+      ? _tplPacks
+      : _tplPacks.filter((p) => p.category === _tplActiveCat);
+
+    if (!packs.length) {
+      grid.innerHTML = '<div class="tpl-loading">No templates in this category yet.</div>';
+      return;
+    }
+
+    grid.innerHTML = packs.map(renderTplCard).join('');
+
+    grid.querySelectorAll('[data-tpl-action]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const { tplAction, tplId, tplName } = btn.dataset;
+        btn.disabled = true;
+        btn.textContent = '…';
+        if (tplAction === 'claim')   await handleClaimPack(tplId, tplName, btn);
+        if (tplAction === 'buy')     await handleBuyPack(tplId, btn);
+        if (tplAction === 'reapply') await handleReapplyPack(tplId, tplName, btn);
+      });
+    });
+  }
+
+  function renderTplCard(pack) {
+    const isFree      = pack.price_cents === 0;
+    const isPurchased = pack.purchased;
+    const priceLabel  = isFree ? 'Free' : `$${(pack.price_cents / 100).toFixed(2)}`;
+
+    let btnHtml;
+    if (isPurchased) {
+      btnHtml = `
+        <button class="tpl-card-btn applied-btn" disabled>✓ Applied</button>
+        <button class="tpl-card-btn free-btn" style="margin-left:4px;font-size:11px;padding:5px 10px"
+          data-tpl-action="reapply" data-tpl-id="${pack.id}" data-tpl-name="${escHtml(pack.name)}">Re-apply</button>`;
+    } else if (isFree) {
+      btnHtml = `<button class="tpl-card-btn free-btn" data-tpl-action="claim" data-tpl-id="${pack.id}" data-tpl-name="${escHtml(pack.name)}">Get Free</button>`;
+    } else {
+      btnHtml = `<button class="tpl-card-btn buy-btn" data-tpl-action="buy" data-tpl-id="${pack.id}">Buy ${priceLabel}</button>`;
+    }
+
+    return `
+      <div class="tpl-card ${pack.is_featured ? 'tpl-card--featured' : ''}" data-pack-id="${pack.id}">
+        <div class="tpl-card-top">
+          <div class="tpl-card-icon">${pack.icon}</div>
+          <div class="tpl-card-meta">
+            <div class="tpl-card-name">${escHtml(pack.name)}</div>
+            <div class="tpl-card-count">${pack.command_count} command${pack.command_count !== 1 ? 's' : ''}</div>
+          </div>
+          ${pack.is_featured ? '<span class="tpl-featured-badge">Featured</span>' : ''}
+        </div>
+        <div class="tpl-card-desc">${escHtml(pack.description)}</div>
+        ${pack.preview_text ? `<div class="tpl-card-preview">"${escHtml(pack.preview_text)}"</div>` : ''}
+        <div class="tpl-card-footer">
+          <span class="tpl-card-price ${isFree ? 'free' : ''}">${priceLabel}</span>
+          <div style="display:flex;gap:4px">${btnHtml}</div>
+        </div>
+        <div class="tpl-apply-notice" id="tpl-notice-${pack.id}" style="display:none"></div>
+      </div>`;
+  }
+
+  async function handleClaimPack(packId, packName, btn) {
+    try {
+      const result = await Api.claimTemplatePack(packId);
+      await applyCommandsToStorage(result.commands, packId, packName);
+      const pack = _tplPacks.find((p) => p.id === packId);
+      if (pack) pack.purchased = true;
+      showTplNotice(packId, `✓ ${result.commands.length} commands added to your library!`);
+      renderTplGrid();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Get Free';
+      showTplNotice(packId, `Error: ${e.message}`, true);
+    }
+  }
+
+  async function handleBuyPack(packId, btn) {
+    try {
+      const url = await Api.checkoutTemplatePack(packId);
+      if (url) chrome.tabs.create({ url });
+    } catch (e) {
+      const pack = _tplPacks.find((p) => p.id === packId);
+      btn.disabled = false;
+      btn.textContent = pack ? `Buy $${(pack.price_cents / 100).toFixed(2)}` : 'Buy';
+      showTplNotice(packId, `Error: ${e.message}`, true);
+    }
+  }
+
+  async function handleReapplyPack(packId, packName) {
+    try {
+      const result = await Api.deliverTemplatePack(packId);
+      await applyCommandsToStorage(result.commands, packId, packName);
+      showTplNotice(packId, `✓ Re-applied ${result.commands.length} commands.`);
+    } catch (e) {
+      showTplNotice(packId, `Error: ${e.message}`, true);
+    } finally {
+      renderTplGrid();
+    }
+  }
+
+  async function applyTemplatePack(packId, packName, fromPurchase = false) {
+    try {
+      const result = fromPurchase
+        ? await Api.deliverTemplatePack(packId)
+        : await Api.claimTemplatePack(packId);
+      await applyCommandsToStorage(result.commands, packId, packName);
+      const pack = _tplPacks.find((p) => p.id === packId);
+      if (pack) pack.purchased = true;
+      showTplNotice(packId, `✓ ${result.commands.length} commands added to your library!`);
+    } catch (e) {
+      showTplNotice(packId, `Could not apply: ${e.message}`, true);
+    }
+  }
+
+  /**
+   * Writes template commands into chrome.storage.local.
+   * Creates a dedicated stack for the pack; replaces any previous commands
+   * from the same pack without touching personal commands.
+   */
+  async function applyCommandsToStorage(rawCommands, packId, packName) {
+    const data    = await CRLStorage.read();
+    const stackId = `tpl_${packId.replace(/-/g, '').slice(0, 16)}`;
+
+    // Create stack if it doesn't exist
+    data.stacks = data.stacks ?? [];
+    if (!data.stacks.find((s) => s.id === stackId)) {
+      data.stacks.push({ id: stackId, name: packName, color: '#6366f1', icon: 'template' });
+    }
+
+    // Remove previously installed commands from this pack
+    data.commands = (data.commands ?? []).filter((c) => c._templatePackId !== packId);
+
+    // Build new commands
+    const now = new Date().toISOString();
+    const newCmds = rawCommands.map((tmpl) => ({
+      id:              CRLStorage.genId('cmd'),
+      name:            tmpl.name        ?? 'Untitled',
+      description:     tmpl.description ?? '',
+      commandType:     tmpl.commandType ?? 'static',
+      template:        tmpl.template    ?? '',
+      variables:       tmpl.variables   ?? [],
+      triggers:        tmpl.triggers    ?? [],
+      conditions:      tmpl.conditions  ?? [],
+      actions:         tmpl.actions     ?? [{ type: 'insert_text' }],
+      stackId,
+      favorite:        false,
+      usageCount:      0,
+      createdAt:       now,
+      _templatePackId: packId,
+    }));
+
+    data.commands = [...data.commands, ...newCmds];
+    await CRLStorage.write(data);
+
+    // Refresh Commands tab cache without a full reload
+    allCommands = data.commands.filter((c) => !c._isTeam);
+    allStacks   = data.stacks;
+  }
+
+  function showTplNotice(packId, msg, isError = false) {
+    const el = document.getElementById(`tpl-notice-${packId}`);
+    if (!el) return;
+    el.style.display    = 'block';
+    el.style.background = isError ? '#fef2f2' : '#ecfdf5';
+    el.style.color      = isError ? '#dc2626'  : '#059669';
+    el.textContent      = msg;
+    if (!isError) setTimeout(() => { el.style.display = 'none'; }, 4000);
   }
 
 })();

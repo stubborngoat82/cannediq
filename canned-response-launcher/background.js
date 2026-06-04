@@ -415,13 +415,83 @@ async function syncTeamCommands() {
 
     // Merge into local storage: replace existing team commands, keep personal ones
     const data = await CRLStorage.read();
-    const personal = (data.commands ?? []).filter((c) => !c._isTeam);
-    data.commands = [...personal, ...teamCmds];
+    const personal = (data.commands ?? []).filter((c) => !c._isTeam && !c._templatePackId);
+    const templateCmds = (data.commands ?? []).filter((c) => c._templatePackId && !c._isTeam);
+    data.commands = [...personal, ...templateCmds, ...teamCmds];
     await CRLStorage.write(data);
     await rebuildContextMenus();
 
     DEBUG && console.log(`[CRL] Team sync: ${teamCmds.length} shared command(s) loaded`);
+
+    // Also sync any template packs purchased for this team
+    await syncTeamTemplatePacks(session);
   } catch (err) {
     DEBUG && console.warn('[CRL] Team command sync failed:', err.message);
+  }
+}
+
+/**
+ * Fetches template packs purchased by any team the user belongs to
+ * and applies them to local storage automatically.
+ */
+async function syncTeamTemplatePacks(session) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-store`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return;
+    const { packs } = await res.json().catch(() => ({ packs: [] }));
+    const teamPurchased = (packs ?? []).filter((p) => p.purchased);
+    if (!teamPurchased.length) return;
+
+    // Check which are already applied locally
+    const data = await CRLStorage.read();
+    const appliedPackIds = new Set(
+      (data.commands ?? []).filter((c) => c._templatePackId).map((c) => c._templatePackId)
+    );
+
+    for (const pack of teamPurchased) {
+      if (appliedPackIds.has(pack.id)) continue; // already applied
+
+      // Deliver and apply
+      const deliverRes = await fetch(`${SUPABASE_URL}/functions/v1/template-delivery`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body:    JSON.stringify({ packId: pack.id }),
+      });
+      if (!deliverRes.ok) continue;
+      const { commands } = await deliverRes.json().catch(() => ({ commands: [] }));
+      if (!commands?.length) continue;
+
+      // Write to storage
+      const freshData = await CRLStorage.read();
+      const stackId   = `tpl_${pack.id.replace(/-/g, '').slice(0, 16)}`;
+      freshData.stacks = freshData.stacks ?? [];
+      if (!freshData.stacks.find((s) => s.id === stackId)) {
+        freshData.stacks.push({ id: stackId, name: pack.name, color: '#6366f1', icon: 'template' });
+      }
+      freshData.commands = (freshData.commands ?? []).filter((c) => c._templatePackId !== pack.id);
+      const now = new Date().toISOString();
+      freshData.commands.push(...commands.map((tmpl) => ({
+        id:              CRLStorage.genId('cmd'),
+        name:            tmpl.name        ?? 'Untitled',
+        description:     tmpl.description ?? '',
+        commandType:     tmpl.commandType ?? 'static',
+        template:        tmpl.template    ?? '',
+        variables:       tmpl.variables   ?? [],
+        triggers:        tmpl.triggers    ?? [],
+        conditions:      tmpl.conditions  ?? [],
+        actions:         tmpl.actions     ?? [{ type: 'insert_text' }],
+        stackId,
+        favorite:        false,
+        usageCount:      0,
+        createdAt:       now,
+        _templatePackId: pack.id,
+      })));
+      await CRLStorage.write(freshData);
+      DEBUG && console.log(`[CRL] Applied team template pack: ${pack.name}`);
+    }
+  } catch (err) {
+    DEBUG && console.warn('[CRL] Team template pack sync failed:', err.message);
   }
 }

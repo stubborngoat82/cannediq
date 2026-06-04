@@ -634,6 +634,61 @@ const Api = (() => {
     };
   }
 
+  // ── Template Store ────────────────────────────────────────────────────────────
+
+  /** Returns all active template packs with purchase status. */
+  async function getTemplatePacks() {
+    const session = await Auth.getValidSession().catch(() => null);
+    const headers = { 'Content-Type': 'application/json' };
+    if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-store`, { headers });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to load templates');
+    return data.packs ?? [];
+  }
+
+  /** Claims a free pack and returns the command list. */
+  async function claimTemplatePack(packId) {
+    const session = await Auth.getValidSession();
+    if (!session) throw new AuthError('Not authenticated');
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ packId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to claim template');
+    return data; // { ok, packId, packName, commands[] }
+  }
+
+  /** Opens Stripe Checkout for a paid pack — returns the checkout URL. */
+  async function checkoutTemplatePack(packId) {
+    const session = await Auth.getValidSession();
+    if (!session) throw new AuthError('Not authenticated');
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ packId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to start checkout');
+    return data.url;
+  }
+
+  /** Fetches commands for an already-purchased pack (for re-apply). */
+  async function deliverTemplatePack(packId) {
+    const session = await Auth.getValidSession();
+    if (!session) throw new AuthError('Not authenticated');
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-delivery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ packId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to deliver template');
+    return data; // { ok, packId, packName, commands[] }
+  }
+
   // ── EULA ─────────────────────────────────────────────────────────────────────
 
   /**
@@ -715,6 +770,12 @@ const Api = (() => {
     // Team seats
     getTeamSeatUsage,
     adjustSeats,
+
+    // Template Store
+    getTemplatePacks,
+    claimTemplatePack,
+    checkoutTemplatePack,
+    deliverTemplatePack,
 
     // EULA
     checkEulaAcceptance,

@@ -187,7 +187,7 @@ const EulaModal = (() => {
         return true;
       }
     } catch (e) {
-      console.warn('[EulaModal] DB check failed, showing modal anyway:', e.message);
+      DEBUG && console.warn('[EulaModal] DB check failed, showing modal anyway:', e.message);
     }
 
     // 3. Show modal — returns when user clicks Accept
@@ -198,7 +198,7 @@ const EulaModal = (() => {
           await setCached();
         } catch (e) {
           // DB write failed — still let the user in; they'll be asked again next login
-          console.error('[EulaModal] Failed to record acceptance:', e.message);
+          DEBUG && console.error('[EulaModal] Failed to record acceptance:', e.message);
         }
         modal_cleanup();
         resolve(true);

@@ -136,7 +136,7 @@
       <a id="btn-extension" class="btn" href="#" style="display:none">
         ↩ Return to CannedIQ
       </a>
-      <button id="btn-close" class="btn" onclick="window.close()">
+      <button id="btn-close" class="btn">
         Close this tab
       </button>
       <a id="btn-pricing" class="btn btn-secondary" href="/pricing">
@@ -194,6 +194,8 @@
         window.close();
       }
     }, 8000);
+
+    document.getElementById('btn-close').addEventListener('click', () => window.close());
 
     document.querySelectorAll('.btn').forEach((b) =>
       b.addEventListener('click', () => clearTimeout(autoCloseTimer))
