@@ -411,9 +411,17 @@
       );
     }
 
-    // ── Supabase config ─────────────────────────────────────────────────────────
-    const SUPA_URL  = 'https://kihuepwhrftjgmglnxnc.supabase.co';
-    const SUPA_ANON = 'sb_publishable_j7PL9l3pZCmnPEsLUI10eQ_xYQQyJbW';
+    // ── Supabase config — selected automatically by hostname ────────────────────
+    //   dev.* / *-git-develop-* / localhost → cannedIQ_dev, else production.
+    const _CANNEDIQ_ENVS = {
+      production:  { url: 'https://kihuepwhrftjgmglnxnc.supabase.co', anon: 'sb_publishable_j7PL9l3pZCmnPEsLUI10eQ_xYQQyJbW' },
+      development: { url: 'https://kjwuykwnjchmpcdwbybn.supabase.co', anon: 'sb_publishable_zzQ34lMEuG_z04O3KWo3gA_TQANzlxE' },
+    };
+    const _h = window.location.hostname;
+    const _isDev = _h.startsWith('dev.') || _h.includes('-git-develop-') || _h === 'localhost' || _h === '127.0.0.1';
+    const _env = _isDev ? _CANNEDIQ_ENVS.development : _CANNEDIQ_ENVS.production;
+    const SUPA_URL  = _env.url;
+    const SUPA_ANON = _env.anon;
 
     // ── Checkout ────────────────────────────────────────────────────────────────
     function triggerCheckout(plan) {
