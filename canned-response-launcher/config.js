@@ -11,7 +11,7 @@
  */
 
 // ── Environment switch ─────────────────────────────────────────────────────────
-const ENV = 'development';   // 'development' | 'production'
+const ENV = 'production';   // 'development' | 'production'
 
 const ENVIRONMENTS = {
   production: {
