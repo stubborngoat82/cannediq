@@ -38,6 +38,28 @@
     kbd { background: #1E293B; border: 1px solid #334155; border-bottom-width: 2px; border-radius: 6px; padding: 0.1rem 0.5rem; font-size: 0.8125rem; font-weight: 600; color: #E2E8F0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
     code { background: #1E293B; padding: 0.1rem 0.4rem; border-radius: 5px; font-size: 0.85rem; color: #E2E8F0; }
 
+      /* ── Logo: white-bg PNG on dark page — wrap in frosted pill ── */
+    .logo-pill {
+      background: rgba(255,255,255,.97);
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      line-height: 0;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+    .logo-pill-lg {
+      background: rgba(255,255,255,.97);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      line-height: 0;
+      box-shadow: 0 4px 24px rgba(0,0,0,.3);
+    }
+
     /* Topic cards */
     .topic-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
     @media (max-width: 720px) { .topic-grid { grid-template-columns: 1fr; } }
@@ -75,8 +97,10 @@
   <nav class="sticky top-0 z-50 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
     <div class="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
       <a href="/" class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm">⚡</div>
-        <span class="font-bold text-lg tracking-tight">cannedIQ</span>
+        <div class="logo-pill">
+          <img src="assets/IQicon.png" alt="cannedIQ icon" width="28" height="28" style="display:block;border-radius:6px;" />
+        </div>
+        <span class="font-display font-bold text-light text-lg tracking-tight">canned<span style="color:#3B82F6">IQ</span></span>
       </a>
       <div class="flex items-center gap-6 text-sm text-slate-400">
         <a href="/docs" class="hover:text-white transition-colors">Docs</a>
