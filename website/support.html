@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support — cannedIQ</title>
+  <meta name="description" content="cannedIQ Help Center — setup guides, keyboard shortcuts, troubleshooting, billing help, and how to contact support." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy:   '#0F172A',
+            card:   '#111827',
+            border: '#1E293B',
+            blue:   '#3B82F6',
+            violet: '#8B5CF6',
+            muted:  '#94A3B8',
+          },
+          fontFamily: { sans: ['-apple-system','BlinkMacSystemFont','Segoe UI','system-ui','sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0F172A; color: #F8FAFC; }
+    .grad { background: linear-gradient(135deg,#3B82F6 0%,#8B5CF6 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .prose-dark h2 { font-size: 1.2rem; font-weight: 700; color: #F8FAFC; margin-top: 2.5rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1E293B; }
+    .prose-dark h3 { font-size: 1rem; font-weight: 600; color: #E2E8F0; margin-top: 1.5rem; margin-bottom: 0.4rem; }
+    .prose-dark p  { color: #94A3B8; line-height: 1.75; margin-bottom: 1rem; font-size: 0.9375rem; }
+    .prose-dark ul { color: #94A3B8; line-height: 1.75; margin-bottom: 1rem; padding-left: 1.25rem; list-style: disc; font-size: 0.9375rem; }
+    .prose-dark ul li { margin-bottom: 0.35rem; }
+    .prose-dark a  { color: #60A5FA; text-decoration: underline; text-underline-offset: 3px; }
+    .prose-dark a:hover { color: #93C5FD; }
+    .info-box { background: #111827; border: 1px solid #1E293B; border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+    .info-box p { margin-bottom: 0; }
+    kbd { background: #1E293B; border: 1px solid #334155; border-bottom-width: 2px; border-radius: 6px; padding: 0.1rem 0.5rem; font-size: 0.8125rem; font-weight: 600; color: #E2E8F0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+    code { background: #1E293B; padding: 0.1rem 0.4rem; border-radius: 5px; font-size: 0.85rem; color: #E2E8F0; }
+
+    /* Topic cards */
+    .topic-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+    @media (max-width: 720px) { .topic-grid { grid-template-columns: 1fr; } }
+    .topic-card { background: #111827; border: 1px solid #1E293B; border-radius: 12px; padding: 1.25rem; transition: border-color .15s, transform .15s; display: block; text-decoration: none !important; }
+    .topic-card:hover { border-color: #3B82F6; transform: translateY(-2px); }
+    .topic-card .ico { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .topic-card h4 { font-size: 0.95rem; font-weight: 700; color: #F8FAFC; margin-bottom: 0.25rem; }
+    .topic-card p  { font-size: 0.8125rem; color: #64748B; margin: 0; line-height: 1.5; }
+
+    /* Shortcut table */
+    .sc-table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: 0.9rem; }
+    .sc-table th { text-align: left; color: #94A3B8; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.5rem 0.75rem; border-bottom: 1px solid #1E293B; }
+    .sc-table td { padding: 0.7rem 0.75rem; border-bottom: 1px solid #1E293B; color: #CBD5E1; vertical-align: middle; }
+    .sc-table td:last-child { color: #94A3B8; font-size: 0.875rem; }
+
+    /* FAQ accordion */
+    details.faq { background: #111827; border: 1px solid #1E293B; border-radius: 12px; margin-bottom: 0.75rem; overflow: hidden; }
+    details.faq summary { cursor: pointer; padding: 1rem 1.25rem; font-weight: 600; color: #F1F5F9; font-size: 0.95rem; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    details.faq summary::-webkit-details-marker { display: none; }
+    details.faq summary::after { content: '+'; color: #64748B; font-size: 1.4rem; line-height: 1; transition: transform .2s; }
+    details.faq[open] summary::after { transform: rotate(45deg); }
+    details.faq summary:hover { color: #fff; }
+    .faq-body { padding: 0 1.25rem 1.25rem; color: #94A3B8; font-size: 0.9rem; line-height: 1.7; }
+    .faq-body p { margin-bottom: 0.75rem; }
+    .faq-body ul { padding-left: 1.25rem; list-style: disc; margin-bottom: 0.75rem; }
+    .faq-body ul li { margin-bottom: 0.3rem; }
+    .faq-body a { color: #60A5FA; text-decoration: underline; text-underline-offset: 3px; }
+    .faq-body ol { padding-left: 1.25rem; list-style: decimal; margin-bottom: 0.75rem; }
+    .faq-body ol li { margin-bottom: 0.4rem; }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+    <div class="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm">⚡</div>
+        <span class="font-bold text-lg tracking-tight">cannedIQ</span>
+      </a>
+      <div class="flex items-center gap-6 text-sm text-slate-400">
+        <a href="/docs" class="hover:text-white transition-colors">Docs</a>
+        <a href="/pricing" class="hover:text-white transition-colors">Pricing</a>
+        <a href="/terms" class="hover:text-white transition-colors">Terms</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <div class="max-w-4xl mx-auto px-6 pt-16 pb-4">
+    <p class="text-sm font-semibold text-blue-400 uppercase tracking-widest mb-3">Help Center</p>
+    <h1 class="text-4xl font-extrabold tracking-tight mb-4">
+      How can we <span class="grad">help?</span>
+    </h1>
+    <p class="text-slate-400 text-base max-w-2xl">
+      Setup guides, keyboard shortcuts, and answers to common questions. Can't find what you need?
+      Email <a href="mailto:support@cannediq.com" class="text-blue-400 underline underline-offset-2">support@cannediq.com</a> and we'll get back to you within one business day.
+    </p>
+  </div>
+
+  <!-- Content -->
+  <main class="max-w-4xl mx-auto px-6 pb-24 prose-dark">
+
+    <!-- Quick topics -->
+    <div class="topic-grid">
+      <a class="topic-card" href="#getting-started">
+        <div class="ico">🚀</div>
+        <h4>Getting Started</h4>
+        <p>Install, sign in, and create your first command.</p>
+      </a>
+      <a class="topic-card" href="#shortcuts">
+        <div class="ico">⌨️</div>
+        <h4>Keyboard Shortcuts</h4>
+        <p>Open the palette and trigger AI Reply fast.</p>
+      </a>
+      <a class="topic-card" href="#troubleshooting">
+        <div class="ico">🛠️</div>
+        <h4>Troubleshooting</h4>
+        <p>Palette won't open, sign-in, sync, templates.</p>
+      </a>
+      <a class="topic-card" href="#billing">
+        <div class="ico">💳</div>
+        <h4>Billing &amp; Plans</h4>
+        <p>Manage your subscription, invoices, and refunds.</p>
+      </a>
+      <a class="topic-card" href="#teams">
+        <div class="ico">👥</div>
+        <h4>Teams</h4>
+        <p>Invite members and share a team library.</p>
+      </a>
+      <a class="topic-card" href="#contact">
+        <div class="ico">✉️</div>
+        <h4>Contact Us</h4>
+        <p>Reach a human at support@cannediq.com.</p>
+      </a>
+    </div>
+
+    <!-- Getting Started -->
+    <h2 id="getting-started">Getting Started</h2>
+    <ol class="list-decimal pl-5 text-slate-400 space-y-2 text-[0.9375rem] leading-relaxed mb-4">
+      <li><strong class="text-slate-300">Install the extension</strong> from the <a href="https://chromewebstore.google.com/detail/njfecjkiffcmgmhdomjbcfcahgajnhii" target="_blank" rel="noopener">Chrome Web Store</a>. After installing, pin cannedIQ to your toolbar for quick access.</li>
+      <li><strong class="text-slate-300">Sign in</strong> by clicking the cannedIQ icon and choosing email or <strong>Continue with Google</strong>.</li>
+      <li><strong class="text-slate-300">Create a command</strong> in the options page — give it a name, a trigger, and the text to insert.</li>
+      <li><strong class="text-slate-300">Use it anywhere</strong> — open the palette with the shortcut below, or type your slash trigger directly into any text field.</li>
+    </ol>
+    <p>For a full walkthrough of commands, variables, conditions, and Actions, see the <a href="/docs">Documentation</a>.</p>
+
+    <!-- Shortcuts -->
+    <h2 id="shortcuts">Keyboard Shortcuts</h2>
+    <table class="sc-table">
+      <thead>
+        <tr><th>Action</th><th>Windows / Linux</th><th>Mac</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="text-slate-200">Open Command Palette</strong></td>
+          <td><kbd>Ctrl</kbd> + <kbd>Space</kbd></td>
+          <td><kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd></td>
+          <td>Search and launch any command</td>
+        </tr>
+        <tr>
+          <td><strong class="text-slate-200">Open AI Reply</strong></td>
+          <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd></td>
+          <td><kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd></td>
+          <td>Generate an AI-assisted reply</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Shortcuts can be customized at any time. Open <code>chrome://extensions/shortcuts</code> in your address bar, find cannedIQ, and set keys that work for you.</p>
+
+    <!-- Troubleshooting -->
+    <h2 id="troubleshooting">Troubleshooting</h2>
+
+    <details class="faq">
+      <summary>The command palette won't open with the keyboard shortcut</summary>
+      <div class="faq-body">
+        <p>Chrome keyboard shortcuts can collide with other extensions or the operating system. To check and reassign:</p>
+        <ol>
+          <li>Open <code>chrome://extensions/shortcuts</code>.</li>
+          <li>Find <strong>cannedIQ — Command Launcher</strong>.</li>
+          <li>If the shortcut is blank or conflicting, click the field and press a new key combination.</li>
+          <li>Make sure the scope is set to <strong>In Chrome</strong> (or <strong>Global</strong> if you want it to work outside the browser).</li>
+        </ol>
+        <p>You can also open the palette by clicking the cannedIQ toolbar icon. If a page still doesn't respond, reload the tab — content scripts don't attach to tabs that were already open when the extension was installed or updated.</p>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>I can't sign in with Google</summary>
+      <div class="faq-body">
+        <p>Try these steps in order:</p>
+        <ul>
+          <li>Make sure pop-ups aren't blocked — Google sign-in opens a secure window.</li>
+          <li>If the window closes immediately, sign out of conflicting Google sessions, then choose your account again from the picker.</li>
+          <li>As an alternative, sign in with your email and password instead.</li>
+        </ul>
+        <p>If it still fails, email us at <a href="mailto:support@cannediq.com">support@cannediq.com</a> with the error message you see.</p>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>My commands aren't syncing across devices</summary>
+      <div class="faq-body">
+        <p>Commands sync to your account when you're signed in. If a device looks out of date:</p>
+        <ul>
+          <li>Confirm you're signed in to the <em>same account</em> on both devices.</li>
+          <li>Open the extension's options page — it refreshes from the server on load.</li>
+          <li>Check your connection; offline edits sync once you're back online.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>I bought a template pack but the commands didn't appear</summary>
+      <div class="faq-body">
+        <p>Purchased packs apply automatically the next time you open the extension. If they don't show up right away:</p>
+        <ol>
+          <li>Open the extension and go to the <strong>Templates</strong> tab.</li>
+          <li>Find your purchased pack and click <strong>Re-apply</strong>.</li>
+          <li>Your commands will be added under a stack named after the pack.</li>
+        </ol>
+        <p>Payment confirmation can take a few moments to process. If a pack you paid for still shows as locked after a few minutes, contact <a href="mailto:support@cannediq.com">support@cannediq.com</a> with your purchase email and we'll unlock it manually.</p>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>My plan upgraded but the extension still shows the old plan</summary>
+      <div class="faq-body">
+        <p>The extension checks for plan changes automatically while the options page is open, and updates within about 30 seconds. To force a refresh, close and reopen the options page, or sign out and back in.</p>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>AI commands say I've hit my limit</summary>
+      <div class="faq-body">
+        <p>AI usage is metered per month based on your plan. Your remaining quota resets at the start of each billing period. To raise your limit, upgrade your plan on the <a href="/pricing">Pricing</a> page or from the Billing tab in the extension.</p>
+      </div>
+    </details>
+
+    <!-- Billing -->
+    <h2 id="billing">Billing &amp; Plans</h2>
+    <p>Manage everything about your subscription — payment method, invoices, plan changes, and cancellation — from the secure Stripe customer portal. Open the extension, go to the <strong>Billing</strong> tab, and click <strong>Manage subscription</strong>.</p>
+
+    <details class="faq">
+      <summary>How do I cancel my subscription?</summary>
+      <div class="faq-body">
+        <p>Open the <strong>Billing</strong> tab in the extension → <strong>Manage subscription</strong> → <strong>Cancel plan</strong>. Your plan stays active until the end of the current billing period, after which you'll move to the free tier. Your saved commands are never deleted when you downgrade.</p>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>Where can I find my invoices and receipts?</summary>
+      <div class="faq-body">
+        <p>All invoices and receipts are available in the Stripe customer portal (Billing tab → Manage subscription). Receipts are also emailed to you automatically after each payment.</p>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>What's your refund policy?</summary>
+      <div class="faq-body">
+        <p>If something isn't working as expected, reach out to <a href="mailto:support@cannediq.com">support@cannediq.com</a> and we'll make it right. See our <a href="/terms">Terms of Service</a> for full details.</p>
+      </div>
+    </details>
+
+    <!-- Teams -->
+    <h2 id="teams">Teams</h2>
+    <p>On the Team plan, the team owner can provision member accounts, share a team command library, and manage seats. Members see shared team commands alongside their own personal commands.</p>
+    <details class="faq">
+      <summary>How do I add or remove team members?</summary>
+      <div class="faq-body">
+        <p>Team owners manage members from the <strong>Teams</strong> tab in the extension (visible only on the Team plan). From there you can provision a new member, reset a member's temporary password, or remove a member. Newly provisioned members are prompted to set their own password on first sign-in.</p>
+      </div>
+    </details>
+    <details class="faq">
+      <summary>Can team owners see my personal commands?</summary>
+      <div class="faq-body">
+        <p>No. Team owners can only see commands shared to the team library — never your personal commands. See the <a href="/privacy">Privacy Policy</a> for details.</p>
+      </div>
+    </details>
+
+    <!-- Contact -->
+    <h2 id="contact">Still need help?</h2>
+    <p>We're a small team and we read every message. Email us and we'll respond within one business day.</p>
+    <div class="info-box">
+      <p>
+        <strong class="text-slate-200">cannedIQ Support</strong><br>
+        General help: <a href="mailto:support@cannediq.com">support@cannediq.com</a><br>
+        Billing questions: <a href="mailto:support@cannediq.com">support@cannediq.com</a><br>
+        Security reports: <a href="mailto:security@cannediq.com">security@cannediq.com</a><br>
+        Privacy requests: <a href="mailto:privacy@cannediq.com">privacy@cannediq.com</a>
+      </p>
+    </div>
+    <p>When emailing about a problem, it helps to include your account email, your browser and OS, and a short description of what you expected versus what happened.</p>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 py-10">
+    <div class="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+      <span>© 2025 AH Push It LLC. All rights reserved.</span>
+      <div class="flex gap-6">
+        <a href="/docs"    class="hover:text-white transition-colors">Docs</a>
+        <a href="/support" class="text-slate-400 hover:text-white transition-colors">Support</a>
+        <a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a>
+        <a href="/terms"   class="hover:text-white transition-colors">Terms of Service</a>
+        <a href="/pricing" class="hover:text-white transition-colors">Pricing</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
