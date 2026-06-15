@@ -29,6 +29,9 @@
   let editConditions = [];
   let editActions    = [{ type: 'insert_text' }];
 
+  // Profile watcher (polls for admin-side plan changes)
+  let _profileWatcherTimer = null;
+
   // Teams tab
   let teams          = [];
   let expandedTeamId = null;
@@ -95,6 +98,12 @@
     document.getElementById('auth-panel').hidden = true;
     document.getElementById('tab-nav').hidden    = false;
 
+    // Show the Teams tab only to team-tier users (owners and provisioned members).
+    // Everyone else sees it hidden — they can upgrade via the Billing tab.
+    const isTeamUser = ['team'].includes(effectiveUser.tier ?? '');
+    const teamsBtn   = document.querySelector('.tab-btn[data-tab="teams"]');
+    if (teamsBtn) teamsBtn.hidden = !isTeamUser;
+
     // If this is a provisioned member on their first login, force a password change first
     if (currentProfile?.must_change_password) {
       showChangePasswordModal();
@@ -119,6 +128,9 @@
     const startTab  = validTabs.includes(urlTab) ? urlTab : 'commands';
     activateTab(startTab);
     if (startTab === 'commands') await loadCommandsTab();
+
+    // Start polling for admin-side plan changes (e.g. admin upgraded this user)
+    startProfileWatcher();
   }
 
   function showChangePasswordModal() {
@@ -161,6 +173,7 @@
   }
 
   function enterGuestMode() {
+    stopProfileWatcher();
     currentUser    = null;
     currentProfile = null;
     renderAccountWidget(null);
@@ -182,6 +195,53 @@
       document.getElementById('btn-signout').addEventListener('click', handleSignOut);
     } else {
       widget.innerHTML = '';
+    }
+  }
+
+  // ─── Profile watcher — detects admin-side plan changes ─────────────────────
+  //
+  // Polls the profile every 30 s while the options page is open.
+  // When tier changes (e.g. an admin just bumped the user's plan), the badge,
+  // Teams tab visibility, and Billing tab are updated without a page reload.
+
+  function startProfileWatcher() {
+    stopProfileWatcher();
+    _profileWatcherTimer = setInterval(async () => {
+      if (!currentUser) return;
+      try {
+        const freshProfile = await Api.getProfile();
+        if (!freshProfile) return;
+        const oldTier = currentProfile?.tier ?? 'free';
+        const newTier = freshProfile.tier ?? 'free';
+        currentProfile = freshProfile;
+        if (oldTier === newTier) return;
+
+        // Tier changed — update UI pieces that depend on it
+        console.log(`[profile-watcher] tier changed: ${oldTier} → ${newTier}`);
+
+        // 1. Account widget badge
+        renderAccountWidget({ ...currentUser, tier: newTier });
+
+        // 2. Teams tab visibility
+        const isTeamUser = newTier === 'team';
+        const teamsBtn = document.querySelector('.tab-btn[data-tab="teams"]');
+        if (teamsBtn) teamsBtn.hidden = !isTeamUser;
+
+        // 3. Refresh Billing tab if it's currently visible
+        const billingPanel = document.getElementById('tab-billing');
+        if (billingPanel && billingPanel.style.display !== 'none') {
+          loadBillingTab();
+        }
+      } catch {
+        // Silently swallow — network blips shouldn't disrupt the UX
+      }
+    }, 30_000);
+  }
+
+  function stopProfileWatcher() {
+    if (_profileWatcherTimer) {
+      clearInterval(_profileWatcherTimer);
+      _profileWatcherTimer = null;
     }
   }
 
@@ -1687,7 +1747,14 @@
     // Also try direct profile fetch for richer data
     try { currentProfile = await Api.getProfile(); } catch {}
 
-    const plan   = planData?.plan ?? currentProfile?.plan ?? 'free';
+    // Sync header badge and Teams tab with whatever tier the DB now reports.
+    // This handles both "user just upgraded via Stripe" and "admin changed the plan".
+    const freshTier = currentProfile?.tier ?? 'free';
+    renderAccountWidget({ ...currentUser, tier: freshTier });
+    const teamsBtn = document.querySelector('.tab-btn[data-tab="teams"]');
+    if (teamsBtn) teamsBtn.hidden = freshTier !== 'team';
+
+    const plan   = planData?.plan ?? currentProfile?.tier ?? 'free';
     const status = planData?.subscriptionStatus ?? currentProfile?.subscription_status ?? null;
     const periodEnd = planData?.currentPeriodEnd ?? currentProfile?.current_period_end ?? null;
     const cancelAtEnd = planData?.cancelAtPeriodEnd ?? currentProfile?.cancel_at_period_end ?? false;
@@ -2248,6 +2315,7 @@
 
     const urlParams     = new URLSearchParams(window.location.search);
     const justPurchased = urlParams.get('template_purchased');
+    const purchaseSessionId = urlParams.get('session_id') ?? null;
 
     const grid = document.getElementById('tpl-grid');
     grid.innerHTML = '<div class="tpl-loading">Loading templates…</div>';
@@ -2270,13 +2338,39 @@
 
     renderTplGrid();
 
+    // Direct URL param — arrives here when user clicks "Open extension" from the
+    // billing-complete page. session_id enables the Stripe fallback in template-delivery
+    // so delivery succeeds even if the webhook hasn't written the purchase record yet.
     if (justPurchased) {
       const pack = _tplPacks.find((p) => p.id === justPurchased);
       if (pack) {
         window.history.replaceState(null, '', window.location.pathname + '?tab=templates');
-        await applyTemplatePack(justPurchased, pack.name, true);
+        await applyTemplatePack(justPurchased, pack.name, true, purchaseSessionId);
         renderTplGrid();
+        return;
       }
+    }
+
+    // Auto-apply any packs the server says are purchased but aren't in local storage yet.
+    // This handles the case where the user bought a paid pack (Stripe redirected to
+    // billing-complete, not back to the extension), then returned to the extension.
+    const localData     = await CRLStorage.read();
+    const localPackIds  = new Set(
+      (localData.commands ?? []).map((c) => c._templatePackId).filter(Boolean)
+    );
+    const unapplied = _tplPacks.filter((p) => p.purchased && !localPackIds.has(p.id));
+
+    if (unapplied.length > 0) {
+      for (const pack of unapplied) {
+        try {
+          const result = await Api.deliverTemplatePack(pack.id);
+          await applyCommandsToStorage(result.commands, pack.id, pack.name);
+          showTplNotice(pack.id, `✓ "${pack.name}" applied — ${result.commands.length} commands added!`);
+        } catch (e) {
+          console.warn(`[templates] Could not auto-apply "${pack.name}":`, e.message);
+        }
+      }
+      renderTplGrid();
     }
   }
 
@@ -2381,10 +2475,10 @@
     }
   }
 
-  async function applyTemplatePack(packId, packName, fromPurchase = false) {
+  async function applyTemplatePack(packId, packName, fromPurchase = false, sessionId = null) {
     try {
       const result = fromPurchase
-        ? await Api.deliverTemplatePack(packId)
+        ? await Api.deliverTemplatePack(packId, sessionId)
         : await Api.claimTemplatePack(packId);
       await applyCommandsToStorage(result.commands, packId, packName);
       const pack = _tplPacks.find((p) => p.id === packId);

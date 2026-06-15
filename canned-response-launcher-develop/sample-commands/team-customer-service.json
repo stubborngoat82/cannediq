@@ -1,0 +1,330 @@
+{
+  "stacks": [
+    {
+      "id": "stack_cs_general",
+      "name": "Customer Service",
+      "color": "#7c3aed",
+      "icon": "💬"
+    },
+    {
+      "id": "stack_cs_recovery",
+      "name": "Service Recovery",
+      "color": "#dc2626",
+      "icon": "🛟"
+    },
+    {
+      "id": "stack_cs_billing",
+      "name": "Billing Inquiry",
+      "color": "#0ea5e9",
+      "icon": "💳"
+    }
+  ],
+  "commands": [
+
+
+    {
+      "id": "cs_greeting",
+      "name": "Warm Greeting",
+      "description": "Friendly opener for any inbound message",
+      "stackId": "stack_cs_general",
+      "commandType": "variable",
+      "template": "Hi {{name}}, thanks for reaching out! I'm happy to help you today. Let me look into this for you right away.",
+      "triggers": [{ "type": "slash", "value": "/greet" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": true, "usageCount": 0
+    },
+
+    {
+      "id": "cs_more_info",
+      "name": "Request More Information",
+      "description": "Politely ask for the details needed to help",
+      "stackId": "stack_cs_general",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nThank you for getting in touch! To make sure I can resolve this as quickly as possible, could you share a few more details?\n\n- {{detail_1}}\n- {{detail_2}}\n\nI'll get right on it once I have that information. Looking forward to hearing from you!",
+      "triggers": [{ "type": "slash", "value": "/moreinfo" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "detail_1", "label": "First detail needed", "type": "text", "required": true },
+        { "key": "detail_2", "label": "Second detail needed", "type": "text", "required": false }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": false, "usageCount": 0
+    },
+
+    {
+      "id": "cs_follow_up",
+      "name": "Follow-Up Check-In",
+      "description": "Check back after a previous interaction",
+      "stackId": "stack_cs_general",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nI wanted to follow up on your recent inquiry about {{topic}}. Has everything been resolved to your satisfaction?\n\nIf you have any remaining questions or need further assistance, please don't hesitate to reach out — I'm here to help.",
+      "triggers": [{ "type": "slash", "value": "/followup" }, { "type": "text", "value": ";;fu" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "topic", "label": "Topic / Issue", "type": "text", "required": true }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": true, "usageCount": 0
+    },
+
+    {
+      "id": "cs_transfer",
+      "name": "Transfer to Specialist",
+      "description": "Let the customer know they're being handed off",
+      "stackId": "stack_cs_general",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nThank you for your patience. I've reviewed your request and I'd like to connect you with {{specialist_team}}, who are best equipped to assist with {{issue}}.\n\nI'm passing along all the details we've discussed so you won't need to repeat yourself. You should hear from them within {{timeframe}}.\n\nIs there anything else I can help clarify before the handoff?",
+      "triggers": [{ "type": "slash", "value": "/transfer" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "specialist_team", "label": "Specialist Team", "type": "dropdown", "required": true, "options": ["our billing team", "our technical support team", "our account management team", "our senior support team"] },
+        { "key": "issue", "label": "Issue Description", "type": "text", "required": true },
+        { "key": "timeframe", "label": "Response Timeframe", "type": "dropdown", "required": true, "options": ["1 business day", "24–48 hours", "2–3 business days", "the next business day"] }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": false, "usageCount": 0
+    },
+
+    {
+      "id": "cs_closing",
+      "name": "Friendly Close",
+      "description": "Wrap up a resolved ticket warmly",
+      "stackId": "stack_cs_general",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nI'm glad we were able to get this sorted out for you! Please don't hesitate to reach back out if anything else comes up — we're always happy to help.\n\nHave a wonderful {{time_of_day}}!",
+      "triggers": [{ "type": "slash", "value": "/close" }, { "type": "text", "value": ";;close" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "time_of_day", "label": "Time of Day", "type": "dropdown", "required": true, "options": ["day", "morning", "afternoon", "evening", "weekend"] }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": true, "usageCount": 0
+    },
+
+    {
+      "id": "cs_ai_reply",
+      "name": "AI-Draft Reply (CS)",
+      "description": "AI reads the highlighted message and drafts a customer service response",
+      "stackId": "stack_cs_general",
+      "commandType": "ai",
+      "template": "",
+      "aiEnabled": true,
+      "aiPrompt": "You are a warm, professional customer service representative.\n\nA customer sent the following message:\n---\n{{selectedText}}\n---\n\nDraft a helpful, empathetic reply. Be concise (3–5 sentences). Do not use hollow filler phrases like 'Great question!' or 'Absolutely!'. Do not add a subject line. Just write the reply body.",
+      "triggers": [{ "type": "slash", "value": "/csreply" }],
+      "variables": [],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "favorite": false, "usageCount": 0
+    },
+
+
+    {
+      "id": "sr_apology_general",
+      "name": "Sincere Apology",
+      "description": "Acknowledge a mistake or bad experience without deflecting",
+      "stackId": "stack_cs_recovery",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nI sincerely apologize for {{issue}}. This is not the experience we aim to provide, and I completely understand your frustration.\n\nI've {{action_taken}} to make this right, and I want to assure you this is being taken seriously. Please let me know if there is anything else I can do — your satisfaction matters greatly to us.",
+      "triggers": [{ "type": "slash", "value": "/sorry" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "issue", "label": "What went wrong", "type": "text", "required": true },
+        { "key": "action_taken", "label": "What you've done to fix it", "type": "text", "required": true }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": true, "usageCount": 0
+    },
+
+    {
+      "id": "sr_delay_apology",
+      "name": "Service Delay Apology",
+      "description": "Acknowledge a delayed delivery, response, or service",
+      "stackId": "stack_cs_recovery",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nI want to sincerely apologize for the delay with {{what_was_delayed}}. We fell short of the standard you deserve, and I'm sorry for any inconvenience this caused.\n\nYour {{what_was_delayed}} is now expected {{new_eta}}. I'm personally keeping an eye on this and will update you immediately if anything changes.\n\nThank you for your patience — we truly appreciate it.",
+      "triggers": [{ "type": "slash", "value": "/delay" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "what_was_delayed", "label": "What was delayed", "type": "text", "required": true },
+        { "key": "new_eta", "label": "New ETA", "type": "text", "required": true }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": false, "usageCount": 0
+    },
+
+    {
+      "id": "sr_compensation_offer",
+      "name": "Goodwill Compensation Offer",
+      "description": "Offer a credit, discount, or gesture to an unhappy customer",
+      "stackId": "stack_cs_recovery",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nAgain, I'm truly sorry for the experience you had with {{issue}}. We want to make this right.\n\nAs a goodwill gesture, I'd like to offer you {{offer}}. I've applied this to your account and it's ready to use.\n\nWe value your loyalty and hope this helps restore your confidence in us. Please reach out any time — we're here for you.",
+      "triggers": [{ "type": "slash", "value": "/comp" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "issue", "label": "Issue / Incident", "type": "text", "required": true },
+        { "key": "offer", "label": "Compensation Offered", "type": "dropdown", "required": true, "options": ["a 10% discount on your next order", "a full refund for this transaction", "a $10 account credit", "one month free on your subscription", "a complimentary upgrade"] }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": true, "usageCount": 0
+    },
+
+    {
+      "id": "sr_escalation_ack",
+      "name": "Escalation Acknowledgement",
+      "description": "Acknowledge a complaint that's been escalated to a supervisor or senior team",
+      "stackId": "stack_cs_recovery",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nThank you for bringing this to our attention, and I want you to know your concern has been escalated to {{escalated_to}}. They will be reviewing your case personally and will be in touch within {{timeframe}}.\n\nYou have my word that this is being handled with the urgency it deserves. I'm sorry again for the trouble this has caused.",
+      "triggers": [{ "type": "slash", "value": "/escalate" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "escalated_to", "label": "Escalated To", "type": "dropdown", "required": true, "options": ["our senior support team", "a supervisor", "our customer experience manager", "our executive support team"] },
+        { "key": "timeframe", "label": "Response Timeframe", "type": "dropdown", "required": true, "options": ["1 business day", "24 hours", "2 business days", "the next business day"] }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": false, "usageCount": 0
+    },
+
+    {
+      "id": "sr_ai_recovery",
+      "name": "AI-Draft Recovery Response",
+      "description": "AI reads an upset customer message and drafts an empathetic service recovery reply",
+      "stackId": "stack_cs_recovery",
+      "commandType": "ai",
+      "template": "",
+      "aiEnabled": true,
+      "aiPrompt": "You are a senior customer service manager specializing in service recovery.\n\nAn upset customer sent the following message:\n---\n{{selectedText}}\n---\n\nDraft a service recovery response that:\n1. Opens with a genuine, specific apology (not generic)\n2. Acknowledges exactly what went wrong without excuses\n3. States a concrete next step to fix the problem\n4. Closes warmly and reassures the customer\n\nTone: empathetic, calm, professional. 4–6 sentences. No hollow phrases like 'We apologize for any inconvenience.' Write the reply body only.",
+      "triggers": [{ "type": "slash", "value": "/recover" }],
+      "variables": [],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "favorite": true, "usageCount": 0
+    },
+
+
+    {
+      "id": "bi_charge_explain",
+      "name": "Explain a Charge",
+      "description": "Clarify what a specific charge on the customer's account is for",
+      "stackId": "stack_cs_billing",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nThank you for reaching out about the {{amount}} charge on {{date}}. I'm happy to clarify!\n\nThis charge corresponds to {{explanation}}. You can view the full breakdown in your account under {{location}}.\n\nIf this still doesn't look right or you have further questions, please let me know — I'm glad to dig deeper.",
+      "triggers": [{ "type": "slash", "value": "/charge" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "amount", "label": "Charge Amount", "type": "text", "required": true },
+        { "key": "date", "label": "Charge Date", "type": "text", "required": true },
+        { "key": "explanation", "label": "What it's for", "type": "text", "required": true },
+        { "key": "location", "label": "Where to find it (e.g. Billing History)", "type": "text", "required": false }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": true, "usageCount": 0
+    },
+
+    {
+      "id": "bi_refund_approved",
+      "name": "Refund Approved",
+      "description": "Confirm a refund has been issued and set timeline expectations",
+      "stackId": "stack_cs_billing",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nGreat news — I've processed a refund of {{amount}} to your {{payment_method}}. Please allow {{timeline}} for it to appear, depending on your bank's processing time.\n\nYou'll receive a confirmation email shortly. If you don't see the refund after {{timeline}}, please reach back out and we'll investigate immediately.",
+      "triggers": [{ "type": "slash", "value": "/refund" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "amount", "label": "Refund Amount", "type": "text", "required": true },
+        { "key": "payment_method", "label": "Payment Method", "type": "dropdown", "required": true, "options": ["original payment method", "credit card on file", "debit card on file", "PayPal account"] },
+        { "key": "timeline", "label": "Processing Time", "type": "dropdown", "required": true, "options": ["3–5 business days", "5–7 business days", "7–10 business days", "1–2 billing cycles"] }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": true, "usageCount": 0
+    },
+
+    {
+      "id": "bi_refund_denied",
+      "name": "Refund Not Approved",
+      "description": "Decline a refund request clearly and empathetically",
+      "stackId": "stack_cs_billing",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nThank you for getting in touch, and I'm sorry to hear about your experience.\n\nAfter reviewing your account, I'm unable to process a refund in this instance because {{reason}}. Our refund policy covers {{policy_summary}}, and unfortunately this request falls outside those terms.\n\nI understand this may be disappointing and I'm sorry I can't do more here. If you'd like to discuss further options, I'm happy to help in any way I can.",
+      "triggers": [{ "type": "slash", "value": "/norefund" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "reason", "label": "Reason for denial", "type": "text", "required": true },
+        { "key": "policy_summary", "label": "Brief policy summary", "type": "text", "required": true }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": false, "usageCount": 0
+    },
+
+    {
+      "id": "bi_payment_failed",
+      "name": "Payment Failed Notice",
+      "description": "Alert the customer to a failed payment and guide next steps",
+      "stackId": "stack_cs_billing",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nI'm reaching out because we weren't able to process your most recent payment of {{amount}} on {{date}}.\n\nTo avoid any interruption to your {{service}}, please update your payment information at your earliest convenience: {{payment_link}}\n\nIf you believe this is an error or your card was charged, please contact your bank — sometimes transactions are declined at the bank level. I'm happy to help troubleshoot further if needed.",
+      "triggers": [{ "type": "slash", "value": "/payfail" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "amount", "label": "Amount", "type": "text", "required": true },
+        { "key": "date", "label": "Date", "type": "text", "required": true },
+        { "key": "service", "label": "Service / Subscription", "type": "text", "required": true },
+        { "key": "payment_link", "label": "Payment Update Link", "type": "text", "required": false }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": false, "usageCount": 0
+    },
+
+    {
+      "id": "bi_subscription_cancel",
+      "name": "Subscription Cancellation Confirm",
+      "description": "Confirm a cancellation and communicate access end date",
+      "stackId": "stack_cs_billing",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nI've processed your cancellation as requested. Your {{plan}} subscription will remain active through {{end_date}}, after which your account will revert to our free tier.\n\nYou won't be charged again. If you change your mind before {{end_date}}, you can reactivate at any time from your account settings.\n\nWe're sorry to see you go — if there's anything that would have made your experience better, we'd genuinely love to hear it.",
+      "triggers": [{ "type": "slash", "value": "/cancel" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "plan", "label": "Plan Name", "type": "text", "required": true },
+        { "key": "end_date", "label": "Access End Date", "type": "text", "required": true }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": false, "usageCount": 0
+    },
+
+    {
+      "id": "bi_upgrade_confirm",
+      "name": "Upgrade Confirmation",
+      "description": "Confirm a plan upgrade and highlight what's now unlocked",
+      "stackId": "stack_cs_billing",
+      "commandType": "variable",
+      "template": "Hi {{name}},\n\nWelcome to {{new_plan}}! Your upgrade is active and all new features are unlocked on your account right now.\n\nHere's what you now have access to:\n{{features}}\n\nIf you have any questions getting started, don't hesitate to reach out. We're excited to have you on {{new_plan}}!",
+      "triggers": [{ "type": "slash", "value": "/upgraded" }],
+      "variables": [
+        { "key": "name", "label": "Customer Name", "type": "text", "required": true },
+        { "key": "new_plan", "label": "New Plan Name", "type": "text", "required": true },
+        { "key": "features", "label": "Key features (one per line)", "type": "textarea", "required": true }
+      ],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "aiEnabled": false, "aiPrompt": "", "favorite": true, "usageCount": 0
+    },
+
+    {
+      "id": "bi_ai_billing",
+      "name": "AI-Draft Billing Response",
+      "description": "AI reads a billing question and drafts a clear, professional response",
+      "stackId": "stack_cs_billing",
+      "commandType": "ai",
+      "template": "",
+      "aiEnabled": true,
+      "aiPrompt": "You are a professional billing support specialist.\n\nA customer sent the following billing inquiry:\n---\n{{selectedText}}\n---\n\nDraft a clear, professional response that:\n1. Directly addresses their question or concern\n2. Explains any charges, policies, or next steps in plain language\n3. Offers a concrete resolution or clear next step\n4. Is empathetic if they're frustrated\n\nTone: professional, clear, reassuring. 4–6 sentences. No hollow filler phrases. Reply body only.",
+      "triggers": [{ "type": "slash", "value": "/billreply" }],
+      "variables": [],
+      "conditions": [], "actions": [{ "type": "insert_text" }],
+      "favorite": false, "usageCount": 0
+    }
+
+  ]
+}

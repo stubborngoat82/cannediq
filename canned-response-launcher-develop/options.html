@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cannedIQ — Command Launcher</title>
+  <link rel="stylesheet" href="options.css" />
+  <link rel="stylesheet" href="eula-modal.css" />
+</head>
+<body>
+  <div class="page">
+
+    <!-- ── Header ── -->
+    <header class="page-header">
+      <div class="page-header-left">
+        <div class="page-logo">
+          <img src="cannediqlogo-transparent.png" alt="cannedIQ" class="page-logo-img" />
+        </div>
+        <p class="subtitle">Your responses. On command. &nbsp;·&nbsp; <kbd>Ctrl+Space</kbd> to launch.</p>
+      </div>
+      <div id="account-widget" class="account-widget"></div>
+    </header>
+
+    <!-- ── Auth panel ── -->
+    <div id="auth-panel" class="auth-panel" hidden>
+      <div class="auth-box">
+        <div class="auth-header">
+          <h2>Sign in to sync your commands</h2>
+          <p>Free forever on the basics. Sign in for cloud sync, teams, and Pro features.</p>
+        </div>
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="signin">Sign in</button>
+          <button class="auth-tab" data-tab="signup">Create account</button>
+        </div>
+        <form id="auth-form" class="auth-form" novalidate>
+          <div class="form-error" id="auth-error" hidden></div>
+          <label>Email
+            <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required />
+          </label>
+          <label>Password
+            <input id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="btn btn-primary btn-full" id="auth-submit">Sign in</button>
+          <div style="text-align:right;margin-top:6px">
+            <button type="button" id="btn-forgot-pw" class="auth-link-btn">Forgot password?</button>
+          </div>
+        </form>
+
+        <!-- Forgot password panel — shown inline when user clicks "Forgot password?" -->
+        <div id="forgot-pw-panel" hidden>
+          <p style="font-size:13px;color:#6b7280;margin-bottom:12px">
+            Enter your email and we'll send you a reset link.
+          </p>
+          <div class="form-error" id="forgot-pw-error" hidden></div>
+          <label>Email
+            <input id="forgot-pw-email" type="email" placeholder="you@example.com" autocomplete="email" />
+          </label>
+          <button class="btn btn-primary btn-full" id="forgot-pw-submit" style="margin-top:10px">Send reset link</button>
+          <p id="forgot-pw-success" hidden style="font-size:13px;color:#16a34a;margin-top:10px;text-align:center">
+            ✉️ Check your inbox — reset link sent.
+          </p>
+          <div style="text-align:center;margin-top:10px">
+            <button type="button" id="btn-back-to-signin" class="auth-link-btn">← Back to sign in</button>
+          </div>
+        </div>
+
+        <div class="auth-divider"><span>or</span></div>
+        <button id="btn-google" class="btn btn-google btn-full">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continue with Google
+        </button>
+        <p class="auth-confirm-msg" id="auth-confirm-msg" hidden>
+          ✉️ Check your inbox — we sent you a confirmation link.
+        </p>
+      </div>
+    </div>
+
+    <!-- ── Main layout ── -->
+    <main id="main-layout">
+
+      <nav class="tab-nav" id="tab-nav" hidden>
+        <button class="tab-btn active" data-tab="commands">Commands</button>
+        <button class="tab-btn" data-tab="teams">Teams</button>
+        <button class="tab-btn" data-tab="billing">Billing</button>
+        <button class="tab-btn" data-tab="templates">🛒 Templates</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+      </nav>
+
+      <!-- ── Commands tab ── -->
+      <div id="tab-commands" class="tab-panel">
+        <div class="cmd-layout">
+          <aside class="stack-sidebar">
+            <div class="stack-sidebar-header">
+              <span>Stacks</span>
+              <button id="btn-new-stack" class="btn btn-ghost btn-xs">+</button>
+            </div>
+            <ul id="stack-list" class="stack-list"></ul>
+          </aside>
+          <section class="cmd-panel">
+            <div class="cmd-panel-header">
+              <div class="cmd-panel-header-left">
+                <h2 id="cmd-panel-title">All Commands</h2>
+                <span id="cmd-panel-count" class="cmd-count-badge">0</span>
+              </div>
+              <div class="cmd-panel-header-right">
+                <input id="cmd-search" class="cmd-search" type="text" placeholder="Filter…" autocomplete="off" />
+                <button id="btn-new-command" class="btn btn-primary btn-sm">+ New Command</button>
+              </div>
+            </div>
+            <div id="cmd-list" class="cmd-list">
+              <div class="cmd-empty">Loading…</div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ── Teams tab ── -->
+      <div id="tab-teams" class="tab-panel" hidden>
+        <div class="teams-page">
+          <div class="section-card">
+            <div class="section-card-header">
+              <div>
+                <h2>Your Teams</h2>
+                <p class="section-desc">Create a team to share a command library with your colleagues.</p>
+              </div>
+              <button id="btn-create-team" class="btn btn-primary btn-sm">+ New Team</button>
+            </div>
+            <div id="teams-list" class="teams-list"><p class="empty-hint">Loading…</p></div>
+          </div>
+          <div class="section-card" id="team-library-card">
+            <div class="section-card-header">
+              <div>
+                <h2>Team Library</h2>
+                <p class="section-desc">Shared categories from teams you belong to.</p>
+              </div>
+            </div>
+            <div id="team-library-list" class="teams-list"><p class="empty-hint">No team categories yet.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Billing tab ── -->
+      <div id="tab-billing" class="tab-panel" hidden>
+        <div id="billing-content" class="billing-page"><p class="empty-hint">Loading…</p></div>
+      </div>
+
+      <!-- ── Templates tab ── -->
+      <div id="tab-templates" class="tab-panel" hidden>
+        <div class="tpl-store">
+          <div class="tpl-store-header">
+            <div>
+              <h2 class="tpl-store-title">Template Store</h2>
+              <p class="tpl-store-subtitle">Ready-made command packs for your role. Claim free packs instantly — paid packs unlock with one click.</p>
+            </div>
+          </div>
+          <div class="tpl-filters">
+            <button class="tpl-filter-btn active" data-cat="all">All</button>
+            <button class="tpl-filter-btn" data-cat="support">🎧 Support</button>
+            <button class="tpl-filter-btn" data-cat="sales">💼 Sales</button>
+            <button class="tpl-filter-btn" data-cat="recruiting">🧑‍💼 Recruiting</button>
+            <button class="tpl-filter-btn" data-cat="dev">💻 Dev</button>
+            <button class="tpl-filter-btn" data-cat="general">📅 General</button>
+            <button class="tpl-filter-btn" data-cat="healthcare">🏥 Healthcare</button>
+            <button class="tpl-filter-btn" data-cat="legal">⚖️ Legal</button>
+            <button class="tpl-filter-btn" data-cat="realestate">🏡 Real Estate</button>
+            <button class="tpl-filter-btn" data-cat="finance">📊 Finance</button>
+            <button class="tpl-filter-btn" data-cat="education">🎓 Education</button>
+            <button class="tpl-filter-btn" data-cat="hospitality">🏨 Hospitality</button>
+          </div>
+          <div id="tpl-grid" class="tpl-grid">
+            <div class="tpl-loading">Loading templates…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Settings tab ── -->
+      <div id="tab-settings" class="tab-panel" hidden>
+        <div class="settings-page">
+
+          <!-- AI usage meter -->
+          <div class="settings-section">
+            <div class="settings-section-header">
+              <h2>⚡ AI Commands</h2>
+              <p>Generate text with AI. Included on Pro and Team plans — no API key needed.</p>
+            </div>
+            <div id="ai-usage-content">
+              <!-- Populated by loadSettingsTab() -->
+            </div>
+          </div>
+
+          <!-- Privacy -->
+          <div class="settings-section">
+            <div class="settings-section-header">
+              <h2>Privacy</h2>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-label">
+                <strong>Clipboard access</strong>
+                <span>Required for the <code>{{clipboard}}</code> variable in commands.</span>
+              </div>
+              <label class="toggle-wrap">
+                <input type="checkbox" id="setting-clipboard-enabled" />
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Data -->
+          <div class="settings-section">
+            <div class="settings-section-header">
+              <h2>Data</h2>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-label">
+                <strong>Import / Export</strong>
+                <span>Back up your commands or share them with your team.</span>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button id="btn-export-commands" class="btn btn-ghost btn-sm">Export JSON</button>
+                <button id="btn-import-commands" class="btn btn-ghost btn-sm">Import → My Commands</button>
+                <button id="btn-import-team-commands" class="btn btn-ghost btn-sm">Import → Team</button>
+              </div>
+            </div>
+            <input id="import-file-input"      type="file" accept=".json" hidden />
+            <input id="import-team-file-input" type="file" accept=".json" hidden />
+
+            <!-- Team import picker modal -->
+            <div id="modal-team-import" style="
+              display:none;position:fixed;inset:0;z-index:9999;background:#0008;
+              align-items:center;justify-content:center;
+            ">
+              <div style="
+                background:#1a1a1f;border:1px solid #2a2a35;border-radius:16px;
+                padding:32px;width:380px;max-width:90vw;
+              ">
+                <h3 style="margin:0 0 8px;font-size:16px;color:#f8fafc">Import to Team</h3>
+                <p style="margin:0 0 20px;font-size:13px;color:#94a3b8">
+                  Choose which team to share these commands with. All team members will get access.
+                </p>
+                <select id="team-import-select" style="
+                  width:100%;padding:10px 12px;border-radius:8px;
+                  background:#0f0f11;border:1px solid #2a2a35;
+                  color:#e2e8f0;font-size:14px;margin-bottom:20px;
+                ">
+                  <option value="">Loading teams…</option>
+                </select>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                  <button id="btn-cancel-team-import" class="btn btn-ghost btn-sm">Cancel</button>
+                  <button id="btn-confirm-team-import" class="btn btn-primary btn-sm">Import to Team</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-footer">
+            <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
+            <span id="settings-saved-msg" class="settings-saved-msg" hidden>✓ Saved</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ══ MODALS ══ -->
+
+  <!-- Command editor -->
+  <div id="modal-command" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box modal-box--wide" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="modal-command-title">New Command</h3>
+        <button class="modal-close" id="modal-command-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row form-row--2">
+          <label>Name *
+            <input id="cmd-name" type="text" placeholder="e.g. Follow Up" autocomplete="off" />
+          </label>
+          <label>Stack
+            <select id="cmd-stack"></select>
+          </label>
+        </div>
+        <label>Description
+          <input id="cmd-description" type="text" placeholder="What does this command do?" autocomplete="off" />
+        </label>
+        <label>Command Type
+          <select id="cmd-type">
+            <option value="static">Static — insert saved text immediately</option>
+            <option value="variable">Variable — prompt for placeholder values before inserting</option>
+            <option value="contextAware">Context-Aware — uses page URL, title, selected text automatically</option>
+            <option value="ai">AI — generate text (Pro/Team, 25–100 req/month)</option>
+            <option value="workflow">Workflow — run multiple actions in sequence</option>
+          </select>
+        </label>
+        <label id="cmd-template-label">Template / Content
+          <textarea id="cmd-template" rows="5" placeholder="Your text here. Use {{name}}, {{today}}, {{selectedText}}, {{pageTitle}}, {{currentUrl}}, {{clipboard}}…"></textarea>
+        </label>
+        <label id="cmd-ai-prompt-label" hidden>AI Prompt
+          <textarea id="cmd-ai-prompt" rows="4" placeholder="e.g. Rewrite the following text in a professional tone: {{inputText}}&#10;&#10;Tip: {{inputText}} uses selected text if highlighted, otherwise grabs the whole field. {{selectedText}}, {{pageTitle}}, {{clipboard}} also available."></textarea>
+        </label>
+        <div class="cmd-favorite-row">
+          <label class="cmd-favorite-label">
+            <input type="checkbox" id="cmd-favorite" />
+            <span>★ Mark as favorite (pinned at top of palette)</span>
+          </label>
+        </div>
+
+        <div class="advanced-sections">
+
+          <details class="adv-section">
+            <summary>Triggers <span class="adv-badge" id="triggers-badge">0</span></summary>
+            <div class="adv-content">
+              <p class="adv-hint">Type a trigger in any text field and press Space or Enter to launch. <strong>Ctrl+Space</strong> opens the palette manually.</p>
+              <div id="trigger-list" class="tag-chip-list"></div>
+              <div class="adv-add-row">
+                <select id="trigger-type-select">
+                  <option value="slash">/ Slash command</option>
+                  <option value="text">;; Text expansion</option>
+                </select>
+                <input id="trigger-value-input" type="text" placeholder="/shortcut" />
+                <button type="button" id="btn-add-trigger" class="btn btn-ghost btn-sm">Add</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="adv-section" id="adv-variables">
+            <summary>Variables <span class="adv-badge" id="variables-badge">0</span></summary>
+            <div class="adv-content">
+              <p class="adv-hint">User-input variables appear in a modal before the command launches. Dynamic variables like <code>{{today}}</code>, <code>{{selectedText}}</code>, <code>{{pageTitle}}</code> are always available without defining them.</p>
+              <div id="variable-list" class="tag-chip-list"></div>
+              <div class="adv-add-row">
+                <input id="var-key"   type="text" placeholder="key" style="width:100px" />
+                <input id="var-label" type="text" placeholder="Label" style="width:130px" />
+                <select id="var-type">
+                  <option value="text">text</option>
+                  <option value="textarea">textarea</option>
+                  <option value="dropdown">dropdown</option>
+                  <option value="date">date</option>
+                </select>
+                <label style="font-size:12px;display:flex;align-items:center;gap:4px">
+                  <input type="checkbox" id="var-required" /> required
+                </label>
+                <button type="button" id="btn-add-variable" class="btn btn-ghost btn-sm">Add</button>
+              </div>
+              <div id="var-options-row" class="adv-add-row" hidden>
+                <input id="var-options" type="text" placeholder="Option 1, Option 2, Option 3 (comma-separated)" style="flex:1" />
+              </div>
+            </div>
+          </details>
+
+          <details class="adv-section">
+            <summary>Conditions <span class="adv-badge" id="conditions-badge">0</span></summary>
+            <div class="adv-content">
+              <p class="adv-hint">Restrict this command to specific sites or contexts. All conditions must pass.</p>
+              <div id="condition-list" class="tag-chip-list"></div>
+              <div class="adv-add-row">
+                <select id="cond-type">
+                  <option value="hostname">Hostname</option>
+                  <option value="url">URL</option>
+                  <option value="siteName">Site name</option>
+                  <option value="selectedTextExists">Selected text exists</option>
+                </select>
+                <select id="cond-operator">
+                  <option value="contains">contains</option>
+                  <option value="equals">equals</option>
+                  <option value="startsWith">starts with</option>
+                  <option value="endsWith">ends with</option>
+                  <option value="exists">exists</option>
+                </select>
+                <input id="cond-value" type="text" placeholder="value" />
+                <button type="button" id="btn-add-condition" class="btn btn-ghost btn-sm">Add</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="adv-section">
+            <summary>Actions <span class="adv-badge" id="actions-badge">1</span></summary>
+            <div class="adv-content">
+              <p class="adv-hint">Actions run in order when the command executes. The default is to insert text at the cursor.</p>
+              <div id="action-list" class="tag-chip-list"></div>
+              <div class="adv-add-row">
+                <select id="action-type-select">
+                  <option value="insert_text">Insert text at cursor</option>
+                  <option value="replace_selection">Replace selected text</option>
+                  <option value="copy_to_clipboard">Copy to clipboard</option>
+                  <option value="open_url">Open URL (template = URL)</option>
+                  <option value="submit_form">Submit form (asks confirmation)</option>
+                </select>
+                <button type="button" id="btn-add-action" class="btn btn-ghost btn-sm">Add</button>
+              </div>
+            </div>
+          </details>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-command-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-command-save"   class="btn btn-primary">Save Command</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stack editor -->
+  <div id="modal-stack" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <h3 id="modal-stack-title">New Stack</h3>
+      <div class="form-row form-row--2">
+        <label>Name *
+          <input id="stack-name-input" type="text" placeholder="e.g. Sales" autocomplete="off" />
+        </label>
+        <label>Color
+          <input id="stack-color-input" type="color" value="#6366f1" style="height:38px;padding:2px 4px;width:100%" />
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-stack-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-stack-save"   class="btn btn-primary">Save Stack</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Team -->
+  <div id="modal-create-team" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <h3>New Team</h3>
+      <label>Team name
+        <input id="modal-team-name-input" type="text" placeholder="e.g. Support Team" autocomplete="off" />
+      </label>
+      <div class="modal-footer">
+        <button id="modal-create-team-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-create-team-save"   class="btn btn-primary">Create Team</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invite Member -->
+  <div id="modal-invite-member" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <h3>Invite Team Member</h3>
+      <div class="form-error" id="invite-error" hidden></div>
+      <label>Email address
+        <input id="modal-invite-email-input" type="email" placeholder="colleague@example.com" autocomplete="off" />
+      </label>
+      <div class="modal-footer">
+        <button id="modal-invite-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-invite-save"   class="btn btn-primary">Send Invite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team Category -->
+  <div id="modal-team-category" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <h3>New Team Category</h3>
+      <label>Category name
+        <input id="modal-team-cat-name-input" type="text" placeholder="e.g. Support Scripts" autocomplete="off" />
+      </label>
+      <div class="modal-footer">
+        <button id="modal-team-cat-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-team-cat-save"   class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding survey — shown to new users on first sign-in -->
+  <div id="modal-onboarding" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+
+      <div class="onboarding-header">
+        <div class="onboarding-logo">⚡ CannedIQ</div>
+        <h3 id="onboarding-title">Welcome! Tell us a bit about yourself</h3>
+        <p class="onboarding-sub">Takes 30 seconds — helps us build the right things for you.</p>
+      </div>
+
+      <!-- Personal / Professional toggle -->
+      <div class="ob-type-toggle" id="ob-type-toggle">
+        <button class="ob-type-btn ob-type-btn--active" data-type="personal" id="ob-type-personal">
+          👤 Personal use
+        </button>
+        <button class="ob-type-btn" data-type="professional" id="ob-type-professional">
+          🏢 Work / business
+        </button>
+      </div>
+
+      <div class="onboarding-grid">
+
+        <!-- Row 1: always visible -->
+        <label>Your name <span class="ob-optional">(optional)</span>
+          <input id="ob-full-name" type="text" placeholder="Jane Smith" autocomplete="name" />
+        </label>
+
+        <!-- Referral always visible -->
+        <label>How did you find us?
+          <select id="ob-referral">
+            <option value="">Select…</option>
+            <option value="chrome_store">Chrome Web Store</option>
+            <option value="google">Google search</option>
+            <option value="friend">Friend / word of mouth</option>
+            <option value="colleague">Colleague / referral</option>
+            <option value="twitter">Twitter / X</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="blog">Blog / article</option>
+            <option value="reddit">Reddit</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+
+        <!-- Use case — options swap based on type -->
+        <label style="grid-column:1/-1">What will you mainly use CannedIQ for?
+          <select id="ob-use-case">
+            <!-- Personal options (default) -->
+            <optgroup label="Personal" id="ob-use-personal-group">
+              <option value="personal_productivity">Personal productivity &amp; shortcuts</option>
+              <option value="writing">Writing / content creation</option>
+              <option value="job_search">Job search &amp; applications</option>
+              <option value="study">Study / research / notes</option>
+              <option value="freelance">Freelance client communication</option>
+              <option value="side_project">Side project / hobby</option>
+              <option value="other">Other</option>
+            </optgroup>
+            <!-- Business options (shown when Work/Business is selected) -->
+            <optgroup label="Work" id="ob-use-work-group" hidden>
+              <option value="customer_support">Customer support / helpdesk</option>
+              <option value="sales">Sales / outreach</option>
+              <option value="recruiting">Recruiting / HR</option>
+              <option value="marketing">Marketing / social media</option>
+              <option value="engineering">Engineering / devops</option>
+              <option value="legal">Legal / compliance</option>
+              <option value="operations">Operations / admin</option>
+              <option value="other">Other</option>
+            </optgroup>
+          </select>
+        </label>
+
+        <!-- Professional-only fields (hidden by default) -->
+        <div id="ob-pro-fields" class="ob-pro-fields ob-pro-fields--hidden">
+          <label>Job title <span class="ob-optional">(optional)</span>
+            <input id="ob-job-title" type="text" placeholder="e.g. Support Manager" autocomplete="organization-title" />
+          </label>
+          <label>Company name <span class="ob-optional">(optional)</span>
+            <input id="ob-company" type="text" placeholder="e.g. Acme Corp" autocomplete="organization" />
+          </label>
+          <label>Team size
+            <select id="ob-company-size">
+              <option value="">Select…</option>
+              <option value="solo">Just me</option>
+              <option value="2-10">2–10 people</option>
+              <option value="11-50">11–50 people</option>
+              <option value="51-200">51–200 people</option>
+              <option value="201-1000">201–1,000 people</option>
+              <option value="1000+">1,000+ people</option>
+            </select>
+          </label>
+        </div>
+
+      </div><!-- /.onboarding-grid -->
+
+      <div class="modal-footer" style="padding:0 28px 24px;border-top:none">
+        <button id="ob-skip"   class="btn btn-ghost">Skip for now</button>
+        <button id="ob-submit" class="btn btn-primary">Save &amp; Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upgrade survey — shown before redirecting to Stripe Checkout -->
+  <div id="modal-upgrade-survey" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="upgrade-survey-title">
+      <h3 id="upgrade-survey-title">One quick question before you upgrade</h3>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:14px">Your answer helps us prioritize features that matter most.</p>
+      <label>What's your main reason for upgrading?
+        <select id="upgrade-reason-select" style="margin-top:6px">
+          <option value="">Select one…</option>
+          <optgroup label="Personal">
+            <option value="more_commands_personal">Need more commands / stacks</option>
+            <option value="ai_personal">Want AI-powered responses</option>
+            <option value="remove_limits_personal">Hit the free tier limits</option>
+            <option value="support_product">Love the product — supporting it</option>
+          </optgroup>
+          <optgroup label="Work / Team">
+            <option value="more_commands_work">Need more commands for work</option>
+            <option value="ai_work">Want AI for work responses</option>
+            <option value="team_sharing">Sharing responses with my team</option>
+            <option value="remove_limits_work">Outgrew the free tier at work</option>
+          </optgroup>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label style="margin-top:12px">Anything else? <span style="color:#9ca3af">(optional)</span>
+        <textarea id="upgrade-reason-text" rows="2"
+          placeholder="e.g. I use this every day and need unlimited stacks…"
+          style="resize:vertical;font-family:inherit;font-size:13px;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;width:100%;margin-top:4px;outline:none;box-sizing:border-box"></textarea>
+      </label>
+      <div class="modal-footer" style="margin-top:16px">
+        <button id="upgrade-survey-skip"   class="btn btn-ghost">Skip</button>
+        <button id="upgrade-survey-submit" class="btn btn-primary">Continue to Checkout →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EULA acceptance — shown to users who have not yet accepted the current version -->
+  <div id="modal-eula" hidden>
+    <div class="modal-box--eula" role="dialog" aria-modal="true" aria-labelledby="eula-title">
+
+      <div class="eula-header">
+        <h2 id="eula-title">⚡ cannedIQ — End User License Agreement</h2>
+        <p class="eula-subtitle">Ah Push It LLC &middot; Version 1.0 &middot; Effective May 26, 2026</p>
+        <p class="eula-intro">Please read the full agreement. The Accept button unlocks once you reach the bottom.</p>
+      </div>
+
+      <div id="eula-body" class="eula-body">
+        <!-- Populated by eula-modal.js -->
+      </div>
+
+      <div class="eula-footer">
+        <div id="eula-decline-msg" hidden>
+          If you do not agree to these terms, please uninstall cannedIQ from
+          <strong>chrome://extensions</strong> to stop using the Extension.
+        </div>
+        <div class="eula-actions">
+          <a href="#" id="eula-decline-link" class="eula-decline-link">I do not agree</a>
+          <button id="eula-accept-btn" class="btn btn-primary" disabled>
+            Scroll to bottom to accept ↓
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Force password change — shown to provisioned members on first login -->
+  <div id="modal-change-password" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="change-pw-title">
+      <h3 id="change-pw-title">Set Your Password</h3>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:16px">
+        Your account was created with a temporary password. Please set a permanent password to continue.
+      </p>
+      <label>New password
+        <input id="change-pw-new" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
+      </label>
+      <label style="margin-top:10px">Confirm password
+        <input id="change-pw-confirm" type="password" placeholder="Repeat password" autocomplete="new-password" />
+      </label>
+      <p id="change-pw-error" style="font-size:12.5px;color:#dc2626;margin-top:8px;min-height:18px"></p>
+      <div class="modal-footer">
+        <button id="change-pw-submit" class="btn btn-primary" style="width:100%">Set Password</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+  <script src="api-client.js"></script>
+  <script src="core/storage.js"></script>
+  <script src="eula-modal.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

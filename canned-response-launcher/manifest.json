@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "cannedIQ — Command Launcher",
-  "version": "2.1.0",
+  "version": "1.0.0",
   "description": "Your responses. On command. Launch commands with slash triggers, text expansion, or Ctrl+Space (Win) / Cmd+Shift+Space (Mac).",
   "permissions": [
     "storage",

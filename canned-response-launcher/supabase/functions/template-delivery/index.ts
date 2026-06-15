@@ -13,10 +13,12 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'npm:stripe@14';
 
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE_ROLE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const STRIPE_KEY        = Deno.env.get('STRIPE_SECRET_KEY')!;
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -49,11 +51,11 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
   // ── Parse body ────────────────────────────────────────────────────────────────
-  let body: { packId?: string };
+  let body: { packId?: string; sessionId?: string };
   try   { body = await req.json(); }
   catch { return json({ error: 'Invalid JSON body' }, 400); }
 
-  const { packId } = body;
+  const { packId, sessionId } = body;
   if (!packId) return json({ error: 'packId is required' }, 400);
 
   // ── Verify pack exists ────────────────────────────────────────────────────────
@@ -66,9 +68,9 @@ Deno.serve(async (req) => {
   if (packErr || !pack) return json({ error: 'Template pack not found' }, 404);
   if (!pack.is_active)  return json({ error: 'This pack is no longer available' }, 410);
 
-  // ── Verify access (free pack, own purchase, or team purchase) ────────────────
+  // ── Verify access (free pack, own purchase, team purchase, or Stripe fallback) ─
   if (pack.price_cents > 0) {
-    // Check own purchase
+    // Check own purchase record in DB
     const { data: ownPurchase } = await supabase
       .from('user_template_purchases')
       .select('id')
@@ -95,6 +97,45 @@ Deno.serve(async (req) => {
           .limit(1)
           .single();
         hasAccess = !!teamPurchase;
+      }
+    }
+
+    // Fallback: verify directly with Stripe when webhook hasn't fired yet.
+    // This handles the race condition where the user is redirected from Stripe
+    // checkout before the webhook has written the purchase record to the DB.
+    if (!hasAccess && sessionId) {
+      try {
+        const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2024-04-10' });
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+        if (
+          session.payment_status === 'paid' &&
+          session.metadata?.type === 'template_purchase' &&
+          session.metadata?.pack_id === packId &&
+          session.metadata?.supabase_user_id === user.id
+        ) {
+          hasAccess = true;
+
+          // Write the purchase record now so subsequent requests hit the DB fast path.
+          // The webhook will upsert again later — ignoreDuplicates handles that safely.
+          const fallbackRecord: any = {
+            user_id:                  user.id,
+            pack_id:                  packId,
+            purchased_at:             new Date().toISOString(),
+            stripe_payment_intent_id: session.payment_intent as string ?? null,
+          };
+          if (session.metadata?.team_id) fallbackRecord.team_id = session.metadata.team_id;
+
+          await supabase
+            .from('user_template_purchases')
+            .upsert(fallbackRecord, { onConflict: 'user_id,pack_id', ignoreDuplicates: true });
+
+          console.log(`[template-delivery] Stripe fallback verified: pack=${packId} user=${user.id}`);
+        }
+      } catch (stripeErr: unknown) {
+        const msg = stripeErr instanceof Error ? stripeErr.message : 'Stripe verification failed';
+        console.error('[template-delivery] Stripe fallback error:', msg);
+        // Fall through — hasAccess remains false, 403 returned below
       }
     }
 

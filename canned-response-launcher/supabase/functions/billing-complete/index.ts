@@ -11,6 +11,8 @@
  *   supabase functions deploy billing-complete --no-verify-jwt
  */
 
+const EXT_ID = Deno.env.get('CHROME_EXTENSION_ID') ?? '';
+
 Deno.serve((req: Request) => {
   const url    = new URL(req.url);
   const status = url.searchParams.get('status');
@@ -19,6 +21,10 @@ Deno.serve((req: Request) => {
     return html(successPage());
   } else if (status === 'portal') {
     return html(portalPage());
+  } else if (status === 'template_success') {
+    const packId    = url.searchParams.get('pack_id')    ?? '';
+    const sessionId = url.searchParams.get('session_id') ?? '';
+    return html(templateSuccessPage(packId, sessionId));
   } else {
     return html(cancelPage());
   }
@@ -103,6 +109,30 @@ function portalPage(): string {
     <p>Close this tab and reopen the extension options page to see your current plan.</p>
     <div class="hint">
       Changes like cancellations take effect at the end of your current billing period.
+    </div>
+  `);
+}
+
+function templateSuccessPage(packId: string, sessionId: string): string {
+  // Build a direct link back to the extension options page so the session_id
+  // travels with the user. This lets the extension verify the purchase with
+  // Stripe even if the webhook hasn't fired yet (race condition fix).
+  const extLink = EXT_ID && packId
+    ? `chrome-extension://${EXT_ID}/options.html?tab=templates&template_purchased=${encodeURIComponent(packId)}&session_id=${encodeURIComponent(sessionId)}`
+    : null;
+
+  const openBtn = extLink
+    ? `<a class="btn" href="${extLink}">Open extension →</a>`
+    : `<p style="margin-top:16px">Close this tab and open the <strong>cannedIQ</strong> extension.</p>`;
+
+  return shell(`
+    <div class="icon">🎉</div>
+    <h1>Pack purchased!</h1>
+    <p>Your template pack has been unlocked. Click below to open the extension — your commands will be applied automatically.</p>
+    ${openBtn}
+    <div class="hint">
+      <strong>Don't see the commands?</strong><br>
+      Open the extension → <strong>Templates</strong> tab → click <strong>Re-apply</strong> on your pack.
     </div>
   `);
 }

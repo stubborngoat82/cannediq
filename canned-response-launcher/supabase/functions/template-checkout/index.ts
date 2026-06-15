@@ -125,18 +125,18 @@ Deno.serve(async (req) => {
   }
 
   // ── Create Checkout Session ───────────────────────────────────────────────────
-  const successUrl = EXT_ID
-    ? `chrome-extension://${EXT_ID}/options.html?tab=templates&template_purchased=${packId}`
-    : `${APP_URL}/billing/success?template_purchased=${packId}`;
+  // NOTE: Stripe requires https:// success URLs — chrome-extension:// is not allowed.
+  // We route through the billing-complete edge function (an https URL) which shows
+  // a confirmation page. The extension auto-applies purchased packs on next open.
+  const baseUrl    = `${SUPABASE_URL}/functions/v1/billing-complete`;
+  const successUrl = `${baseUrl}?status=template_success&pack_id=${packId}&session_id={CHECKOUT_SESSION_ID}`;
 
   const session = await stripe.checkout.sessions.create({
     mode:               'payment',
     customer:           customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url:        successUrl,
-    cancel_url:         EXT_ID
-      ? `chrome-extension://${EXT_ID}/options.html?tab=templates`
-      : `${APP_URL}`,
+    cancel_url:         `${SUPABASE_URL}/functions/v1/billing-complete?status=cancel`,
     metadata: {
       type:             'template_purchase',
       pack_id:          packId,

@@ -1,0 +1,74 @@
+{
+  "manifest_version": 3,
+  "name": "cannedIQ — Command Launcher",
+  "version": "2.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2ONWt9HiWet3mgtdKpY8HNoMgNDSlEPvvfMv3teXYhdgwmikJ5V3zwWOgHh5gWMHeX8pbE7daSJAb4clCBRWis+f0moNiyno9wLDz6ozsnNliEMdiVhxRzi/37jOc/mBzqQ51hpiH77PhcdpeGqxF6noDQIkpR0w+rNMxwUsNxXsZdLX59V7+yyIAMwIcP5fIWOoq7QKspcUVpgIwuKgM7HVv+iafhYIBnUIjKPnZ20dARXsiCN/1b7wSmdKOOFPmAJkxTKRVJulJdo0LxKbe8OdbUctKX5nSjUDBhX+YVbcEVry/dnpkDXVIZgwZe24egQH4ARitTxOMk05D6wqawIDAQAB",
+  "description": "Your responses. On command. Launch commands with slash triggers, text expansion, or Ctrl+Space (Win) / Cmd+Shift+Space (Mac).",
+  "permissions": [
+    "storage",
+    "identity",
+    "alarms",
+    "tabs",
+    "contextMenus",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.supabase.co/*"
+  ],
+  "externally_connectable": {
+    "matches": ["https://cannediq.com/*", "https://www.cannediq.com/*"]
+  },
+  "commands": {
+    "open-palette": {
+      "suggested_key": {
+        "default": "Ctrl+Space",
+        "mac": "Command+Shift+Space"
+      },
+      "description": "Open cannedIQ Command Palette"
+    },
+    "open-ai-reply": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R",
+        "mac": "Command+Shift+R"
+      },
+      "description": "Open AI Reply"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "config.js",
+        "auth.js",
+        "api-client.js",
+        "core/storage.js",
+        "core/context.js",
+        "core/conditions.js",
+        "core/variables.js",
+        "core/history.js",
+        "core/gates.js",
+        "core/upgrade.js",
+        "core/executor.js",
+        "core/ai-reply.js",
+        "content.js"
+      ],
+      "css": ["overlay.css", "upgrade.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  },
+  "action": {
+    "default_title": "cannedIQ — Command Launcher"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

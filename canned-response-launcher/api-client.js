@@ -675,14 +675,17 @@ const Api = (() => {
     return data.url;
   }
 
-  /** Fetches commands for an already-purchased pack (for re-apply). */
-  async function deliverTemplatePack(packId) {
+  /** Fetches commands for an already-purchased pack (for re-apply).
+   *  sessionId: optional Stripe checkout session ID — passed as fallback
+   *  verification when the webhook may not have fired yet. */
+  async function deliverTemplatePack(packId, sessionId = null) {
     const session = await Auth.getValidSession();
     if (!session) throw new AuthError('Not authenticated');
+    const body = sessionId ? { packId, sessionId } : { packId };
     const res = await fetch(`${SUPABASE_URL}/functions/v1/template-delivery`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({ packId }),
+      body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || 'Failed to deliver template');

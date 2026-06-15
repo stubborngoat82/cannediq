@@ -1,2 +1,6 @@
 .DS_Store
 *.DS_Store
+
+# Extension signing keys — never commit private keys
+secrets/
+*.pem

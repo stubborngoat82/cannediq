@@ -82,20 +82,28 @@ const Auth = (() => {
    */
   async function signInWithGoogle() {
     // No path argument — returns https://{ext-id}.chromiumapp.org/
-    // which matches the https://*.chromiumapp.org/ entry in Supabase's allowed redirect URLs
+    // This exact URL must be added in TWO places:
+    //   1. Supabase Dashboard → Authentication → URL Configuration → Redirect URLs
+    //   2. Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client → Authorized redirect URIs
     const redirectUrl = chrome.identity.getRedirectURL();
 
-    // Build the Supabase Google OAuth URL.
-    // prompt=select_account forces Google to show the account picker every time
-    // so the user actively chooses their account after signing out.
+    // IMPORTANT: flow_type=implicit is required for chrome.identity.launchWebAuthFlow.
+    // Supabase defaults to PKCE, which requires a code_verifier that can't survive
+    // the redirect hop — implicit flow returns tokens directly in the URL hash instead.
     const oauthUrl =
       `${AUTH_URL}/authorize?provider=google` +
       `&redirect_to=${encodeURIComponent(redirectUrl)}` +
+      `&flow_type=implicit` +
       `&prompt=select_account`;
+
+    // Log both URLs so you can verify / copy-paste into the allowlists.
+    console.log('[Auth] Google OAuth redirect URL (add this to Supabase + Google Cloud):', redirectUrl);
+    console.log('[Auth] Full authorize URL (paste into browser to test):', oauthUrl);
 
     return new Promise((resolve, reject) => {
       chrome.identity.launchWebAuthFlow({ url: oauthUrl, interactive: true }, async (responseUrl) => {
         if (chrome.runtime.lastError) {
+          console.error('[Auth] launchWebAuthFlow error:', chrome.runtime.lastError.message);
           reject(new Error(chrome.runtime.lastError.message));
           return;
         }
