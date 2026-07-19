@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beta Program Application — cannedIQ</title>
+  <meta name="description" content="Apply to join the cannedIQ beta program and help shape upcoming features, templates, and reliability improvements." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy:   '#0F172A',
+            card:   '#111827',
+            border: '#1E293B',
+            blue:   '#3B82F6',
+            violet: '#8B5CF6',
+            muted:  '#94A3B8',
+          },
+          fontFamily: { sans: ['-apple-system','BlinkMacSystemFont','Segoe UI','system-ui','sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    /* ── Logo: white-bg PNG on dark nav/footer — wrap in frosted pill ── */
+    .logo-pill {
+      background: rgba(255,255,255,.97);
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      line-height: 0;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-alt: #f8fafc;
+      --text: #172033;
+      --muted: #5f6b7a;
+      --border: #dbe2ea;
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --danger-bg: #fff7ed;
+      --danger-border: #fb923c;
+      --danger-text: #9a3412;
+      --success-bg: #ecfdf5;
+      --success-text: #065f46;
+      --error-bg: #fef2f2;
+      --error-text: #991b1b;
+      --radius: 16px;
+      --shadow: 0 18px 50px rgba(23, 32, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(79, 70, 229, 0.12), transparent 32rem),
+        var(--bg);
+    }
+
+    a {
+      color: var(--primary);
+    }
+
+    .page-shell {
+      width: min(960px, calc(100% - 32px));
+      margin: 48px auto;
+    }
+
+    .hero {
+      margin-bottom: 28px;
+      text-align: center;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-accent {
+      color: #3B82F6;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      max-width: 680px;
+      margin: 18px auto 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+
+    .form-card {
+      padding: clamp(22px, 4vw, 42px);
+      border: 1px solid rgba(219, 226, 234, 0.9);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: var(--shadow);
+    }
+
+    .section {
+      padding: 28px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:first-child {
+      padding-top: 0;
+    }
+
+    .section:last-of-type {
+      border-bottom: 0;
+    }
+
+    .section-title {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
+    }
+
+    .section-description {
+      margin: 0 0 22px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .notice {
+      padding: 18px;
+      border: 1px solid var(--danger-border);
+      border-left-width: 5px;
+      border-radius: 12px;
+      color: var(--danger-text);
+      background: var(--danger-bg);
+      line-height: 1.6;
+    }
+
+    .notice strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label,
+    legend {
+      font-weight: 700;
+      font-size: 0.94rem;
+    }
+
+    .optional {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      background: #fff;
+      font: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+    }
+
+    fieldset {
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 18px;
+      margin-top: 12px;
+    }
+
+    .choice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-alt);
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .choice input {
+      width: auto;
+      margin-top: 2px;
+      accent-color: var(--primary);
+    }
+
+    .agreement {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-alt);
+      line-height: 1.55;
+    }
+
+    .agreement input {
+      width: auto;
+      margin-top: 4px;
+      accent-color: var(--primary);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding-top: 26px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 22px;
+      color: #fff;
+      background: var(--primary);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s;
+    }
+
+    button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+      transform: none;
+    }
+
+    .status {
+      display: none;
+      flex: 1;
+      padding: 12px 14px;
+      border-radius: 10px;
+      line-height: 1.5;
+    }
+
+    .status.success {
+      display: block;
+      color: var(--success-text);
+      background: var(--success-bg);
+    }
+
+    .status.error {
+      display: block;
+      color: var(--error-text);
+      background: var(--error-bg);
+    }
+
+    .privacy-note {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+
+    .honeypot {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 700px) {
+      .page-shell {
+        width: min(100% - 20px, 960px);
+        margin: 24px auto;
+      }
+
+      .grid,
+      .choice-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans">
+
+  <!-- Nav -->
+  <nav class="sticky top-0 z-50 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+    <div class="max-w-[960px] mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5">
+        <span class="logo-pill">
+          <img src="assets/IQicon.png" alt="cannedIQ icon" width="28" height="28" style="display:block;border-radius:6px;" />
+        </span>
+        <span class="font-bold text-white text-lg tracking-tight">canned<span style="color:#3B82F6">IQ</span></span>
+      </a>
+      <div class="flex items-center gap-6 text-sm text-slate-400">
+        <a href="/docs" class="hover:text-white transition-colors">Docs</a>
+        <a href="/pricing" class="hover:text-white transition-colors">Pricing</a>
+        <a href="/terms" class="hover:text-white transition-colors">Terms</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <header class="hero">
+      <div class="brand">
+        <span class="logo-pill">
+          <img src="assets/IQicon.png" alt="cannedIQ icon" width="22" height="22" style="display:block;border-radius:5px;" />
+        </span>
+        <span>canned<span class="brand-accent">IQ</span></span>
+      </div>
+      <h1>Help shape the future of cannedIQ</h1>
+      <p>
+        Apply to join the cannedIQ beta program. Your feedback will help improve
+        the extension's reliability, usability, templates, and future features.
+      </p>
+    </header>
+
+    <form id="beta-form" class="form-card">
+      <section class="section">
+        <h2 class="section-title">Beta program notice</h2>
+        <p class="section-description">
+          Please review this notice carefully before applying.
+        </p>
+
+        <div class="notice">
+          <strong>Important beta data disclaimer</strong>
+          cannedIQ is actively being developed and tested. Features may change,
+          stop working, or be removed without notice. Responses, categories,
+          settings, templates, account data, and other information entered into
+          the system during beta testing may be modified or permanently deleted
+          during an upgrade, maintenance event, database reset, or future beta
+          testing cycle. Do not use cannedIQ as the only storage location for
+          important, confidential, regulated, or business-critical information.
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Contact information</h2>
+        <p class="section-description">
+          We will use this information for beta enrollment, onboarding, updates,
+          and feedback surveys.
+        </p>
+
+        <div class="grid">
+          <div class="field">
+            <label for="first_name">First name</label>
+            <input id="first_name" name="first_name" autocomplete="given-name" required />
+          </div>
+
+          <div class="field">
+            <label for="last_name">Last name</label>
+            <input id="last_name" name="last_name" autocomplete="family-name" required />
+          </div>
+
+          <div class="field">
+            <label for="email">Email address</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="linkedin_url">
+              LinkedIn profile <span class="optional">(optional)</span>
+            </label>
+            <input
+              id="linkedin_url"
+              name="linkedin_url"
+              type="url"
+              placeholder="https://www.linkedin.com/in/..."
+            />
+          </div>
+
+          <div class="field">
+            <label for="company">
+              Company <span class="optional">(optional)</span>
+            </label>
+            <input id="company" name="company" autocomplete="organization" />
+          </div>
+
+          <div class="field">
+            <label for="job_title">Job title</label>
+            <input id="job_title" name="job_title" autocomplete="organization-title" required />
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Your workflow</h2>
+        <p class="section-description">
+          These answers help us understand where cannedIQ may provide the most value.
+        </p>
+
+        <div class="grid">
+          <div class="field">
+            <label for="industry">Industry</label>
+            <select id="industry" name="industry" required>
+              <option value="">Select an industry</option>
+              <option>Administrative Services</option>
+              <option>Customer Support</option>
+              <option>Education</option>
+              <option>Finance</option>
+              <option>Healthcare</option>
+              <option>Insurance</option>
+              <option>Legal</option>
+              <option>Property Management</option>
+              <option>Real Estate</option>
+              <option>Recruiting / Human Resources</option>
+              <option>Sales</option>
+              <option>Technology / IT</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="messages_per_day">Repetitive messages per workday</label>
+            <select id="messages_per_day" name="messages_per_day" required>
+              <option value="">Select a range</option>
+              <option value="under_10">Under 10</option>
+              <option value="10_25">10–25</option>
+              <option value="26_50">26–50</option>
+              <option value="51_100">51–100</option>
+              <option value="over_100">More than 100</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="current_solution">How do you currently save reusable responses?</label>
+            <select id="current_solution" name="current_solution" required>
+              <option value="">Select an option</option>
+              <option>Browser extension</option>
+              <option>CRM or help-desk templates</option>
+              <option>Email templates</option>
+              <option>Notes or sticky notes</option>
+              <option>Text or Word document</option>
+              <option>Text expander</option>
+              <option>I do not currently save them</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="expected_usage">Expected cannedIQ usage</label>
+            <select id="expected_usage" name="expected_usage" required>
+              <option value="">Select an option</option>
+              <option value="daily">Daily</option>
+              <option value="several_times_week">Several times a week</option>
+              <option value="occasionally">Occasionally</option>
+            </select>
+          </div>
+
+          <div class="field full">
+            <fieldset>
+              <legend>Communication platforms you regularly use</legend>
+              <div class="choice-grid">
+                <label class="choice"><input type="checkbox" name="platforms" value="Gmail" /> Gmail</label>
+                <label class="choice"><input type="checkbox" name="platforms" value="Outlook" /> Outlook</label>
+                <label class="choice"><input type="checkbox" name="platforms" value="Zendesk" /> Zendesk</label>
+                <label class="choice"><input type="checkbox" name="platforms" value="Salesforce" /> Salesforce</label>
+                <label class="choice"><input type="checkbox" name="platforms" value="Slack" /> Slack</label>
+                <label class="choice"><input type="checkbox" name="platforms" value="Microsoft Teams" /> Microsoft Teams</label>
+                <label class="choice"><input type="checkbox" name="platforms" value="Web CRM" /> Web-based CRM</label>
+                <label class="choice"><input type="checkbox" name="platforms" value="Other" /> Other</label>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="field full">
+            <label for="pain_points">What is your biggest frustration with repetitive communication?</label>
+            <textarea
+              id="pain_points"
+              name="pain_points"
+              maxlength="2000"
+              required
+            ></textarea>
+          </div>
+
+          <div class="field full">
+            <label for="use_case">
+              How would you use cannedIQ? <span class="optional">(optional)</span>
+            </label>
+            <textarea
+              id="use_case"
+              name="use_case"
+              maxlength="2000"
+            ></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Technical information</h2>
+
+        <div class="grid">
+          <div class="field">
+            <label for="browser">Primary browser</label>
+            <select id="browser" name="browser" required>
+              <option value="">Select a browser</option>
+              <option>Google Chrome</option>
+              <option>Microsoft Edge</option>
+              <option>Brave</option>
+              <option>Other Chromium browser</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="operating_system">Operating system</label>
+            <select id="operating_system" name="operating_system" required>
+              <option value="">Select an operating system</option>
+              <option>Windows</option>
+              <option>macOS</option>
+              <option>ChromeOS</option>
+              <option>Linux</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Participation preferences</h2>
+
+        <div class="choice-grid">
+          <label class="choice">
+            <input type="checkbox" name="survey_consent" />
+            I am willing to complete occasional beta surveys.
+          </label>
+
+          <label class="choice">
+            <input type="checkbox" name="bug_report_consent" />
+            I am willing to report bugs and usability issues.
+          </label>
+
+          <label class="choice">
+            <input type="checkbox" name="interview_consent" />
+            I may be willing to participate in a short feedback interview.
+          </label>
+
+          <label class="choice">
+            <input type="checkbox" name="marketing_consent" />
+            I agree to receive optional product news and launch announcements.
+          </label>
+        </div>
+
+        <label class="agreement">
+          <input id="beta_terms_accepted" name="beta_terms_accepted" type="checkbox" required />
+          <span>
+            I understand that cannedIQ is beta software. I acknowledge that
+            features may change and that any data I enter into the system may be
+            modified or permanently deleted during future upgrades, maintenance,
+            database resets, or beta testing cycles.
+          </span>
+        </label>
+
+        <label class="agreement">
+          <input id="privacy_acknowledged" name="privacy_acknowledged" type="checkbox" required />
+          <span>
+            I understand that the information submitted through this form will
+            be used to administer the beta program, communicate enrollment and
+            product updates, and request feedback. It will not be sold.
+          </span>
+        </label>
+
+        <div class="honeypot" aria-hidden="true">
+          <label for="website">Leave this field blank</label>
+          <input id="website" name="website" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <div class="actions">
+          <button id="submit-button" type="submit">Apply for the beta</button>
+          <div id="form-status" class="status" role="status" aria-live="polite"></div>
+        </div>
+
+        <p class="privacy-note">
+          Submitting this form does not guarantee acceptance into the beta program.
+          Participation may be limited, paused, or ended at any time.
+        </p>
+      </section>
+    </form>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 py-10">
+    <div class="max-w-[960px] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+      <span>© 2026 cannedIQ · AH Push It LLC · All rights reserved.</span>
+      <div class="flex gap-6">
+        <a href="/docs"    class="hover:text-white transition-colors">Docs</a>
+        <a href="/support" class="text-slate-400 hover:text-white transition-colors">Support</a>
+        <a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a>
+        <a href="/terms"   class="hover:text-white transition-colors">Terms of Service</a>
+        <a href="/pricing" class="hover:text-white transition-colors">Pricing</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    /*
+      SETUP:
+      1. Run the supplied SQL in your Supabase SQL editor.
+      2. Replace the two values below with your Supabase project URL and anon key.
+      3. Host this page on your website, ideally at /beta.
+    */
+
+    const SUPABASE_URL = "https://kihuepwhrftjgmglnxnc.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_j7PL9l3pZCmnPEsLUI10eQ_xYQQyJbW";
+
+    const form = document.getElementById("beta-form");
+    const submitButton = document.getElementById("submit-button");
+    const formStatus = document.getElementById("form-status");
+
+    function setStatus(type, message) {
+      formStatus.className = `status ${type}`;
+      formStatus.textContent = message;
+    }
+
+    function checkboxValue(formData, name) {
+      return formData.get(name) === "on";
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setStatus("", "");
+
+      if (!form.reportValidity()) {
+        return;
+      }
+
+      const formData = new FormData(form);
+
+      // Basic bot protection.
+      if (formData.get("website")) {
+        return;
+      }
+
+      const platforms = formData.getAll("platforms");
+
+      if (platforms.length === 0) {
+        setStatus("error", "Please select at least one communication platform.");
+        return;
+      }
+
+      const payload = {
+        first_name: formData.get("first_name").trim(),
+        last_name: formData.get("last_name").trim(),
+        email: formData.get("email").trim().toLowerCase(),
+        linkedin_url: formData.get("linkedin_url").trim() || null,
+        company: formData.get("company").trim() || null,
+        job_title: formData.get("job_title").trim(),
+        industry: formData.get("industry"),
+        messages_per_day: formData.get("messages_per_day"),
+        current_solution: formData.get("current_solution"),
+        expected_usage: formData.get("expected_usage"),
+        platforms,
+        pain_points: formData.get("pain_points").trim(),
+        use_case: formData.get("use_case").trim() || null,
+        browser: formData.get("browser"),
+        operating_system: formData.get("operating_system"),
+        survey_consent: checkboxValue(formData, "survey_consent"),
+        bug_report_consent: checkboxValue(formData, "bug_report_consent"),
+        interview_consent: checkboxValue(formData, "interview_consent"),
+        marketing_consent: checkboxValue(formData, "marketing_consent"),
+        beta_terms_accepted: checkboxValue(formData, "beta_terms_accepted"),
+        privacy_acknowledged: checkboxValue(formData, "privacy_acknowledged"),
+        beta_terms_version: "2026-07-18"
+      };
+
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting…";
+
+      try {
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/beta_applications`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": SUPABASE_ANON_KEY,
+              "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+              "Prefer": "return=minimal"
+            },
+            body: JSON.stringify(payload)
+          }
+        );
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new Error(errorBody || "The application could not be submitted.");
+        }
+
+        form.reset();
+        setStatus(
+          "success",
+          "Thank you. Your beta application has been received. Watch your email for enrollment information."
+        );
+      } catch (error) {
+        console.error(error);
+        setStatus(
+          "error",
+          "We could not submit your application. Please try again or contact cannedIQ support."
+        );
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Apply for the beta";
+      }
+    });
+  </script>
+
+</body>
+</html>
