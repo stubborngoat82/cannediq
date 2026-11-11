@@ -182,6 +182,31 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 });
 
+// Messages from the website (billing success / complete pages). externally_connectable
+// in the manifest is what allows these origins to reach the extension.
+chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
+  const origin = sender.origin || '';
+  const url = sender.url || '';
+  const allowed = [
+    'https://cannediq.com',
+    'https://www.cannediq.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ];
+  const ok = allowed.some((o) => origin === o || url === o || url.startsWith(o + '/'));
+  if (!ok) {
+    sendResponse({ error: 'Origin not allowed' });
+    return;
+  }
+  if (msg.type === 'REFRESH_PLAN') {
+    refreshUserPlan({ syncFromStripe: true })
+      .then((plan) => sendResponse({ plan }))
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
+  sendResponse({ ok: false });
+});
+
 // ── 6. AI proxy ───────────────────────────────────────────────────────────────
 //
 // AI is a managed service — the API key lives server-side in the Edge Function.
@@ -436,7 +461,7 @@ async function syncTeamCommands() {
  */
 async function syncTeamTemplatePacks(session) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-store`, {
+    const res = await fetch(`${API_URL}/store`, {
       headers: { 'Authorization': `Bearer ${session.access_token}` },
     });
     if (!res.ok) return;
@@ -455,7 +480,7 @@ async function syncTeamTemplatePacks(session) {
     if (!toApply.length) return;
 
     const delivered = await Promise.all(toApply.map(async (pack) => {
-      const deliverRes = await fetch(`${SUPABASE_URL}/functions/v1/template-delivery`, {
+      const deliverRes = await fetch(`${API_URL}/store/deliver`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body:    JSON.stringify({ packId: pack.id }),

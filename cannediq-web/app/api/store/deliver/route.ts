@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
       .from('template_packs')
       .select('id, name, price_cents, is_active').eq('id', packId).single();
 
-    if (!pack?.is_active) return json({ error: 'Template pack not found' }, 404);
+    if (!pack) return json({ error: 'Template pack not found' }, 404);
+    if (!pack.is_active) return json({ error: 'This pack is no longer available' }, 410);
 
     // Verify access
     let hasAccess = pack.price_cents === 0;

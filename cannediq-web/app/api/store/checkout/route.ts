@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
       .select('id, name, price_cents, stripe_price_id, is_active')
       .eq('id', packId).single();
 
-    if (!pack?.is_active)       return json({ error: 'Template pack not found' }, 404);
-    if (pack.price_cents === 0) return json({ error: 'Free pack — use /api/store to claim.' }, 422);
+    if (!pack)                  return json({ error: 'Template pack not found' }, 404);
+    if (!pack.is_active)        return json({ error: 'This pack is no longer available' }, 410);
+    if (pack.price_cents === 0) return json({ error: 'This is a free pack. Use template-store to claim.' }, 422);
 
     // Check already purchased
     const { data: existing } = await supabase
@@ -66,8 +67,11 @@ export async function POST(req: NextRequest) {
       await supabase.from('template_packs').update({ stripe_price_id: priceId }).eq('id', packId);
     }
 
-    const successUrl = `${APP_URL}/billing/success?status=template_success&pack_id=${packId}&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl  = `${APP_URL}/store`;
+    // HTTPS only — Stripe rejects chrome-extension:// success URLs.
+    // billing/complete links back into the extension with pack + session ids
+    // so delivery can verify the payment before the webhook lands.
+    const successUrl = `${APP_URL}/billing/complete?status=template_success&pack_id=${encodeURIComponent(packId)}&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl  = `${APP_URL}/billing/complete?status=cancel`;
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',

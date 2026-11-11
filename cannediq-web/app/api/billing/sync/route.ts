@@ -2,13 +2,14 @@
  * POST /api/billing/sync
  * Replaces: Supabase Edge Function sync-billing
  *
- * Pulls authoritative subscription state from Stripe and writes it back to
- * the profiles/teams tables. Called by the extension after returning from
- * Stripe Checkout or the Customer Portal.
+ * Pulls the caller's Stripe subscription and writes tier, period, and team
+ * seats. The extension calls this after Checkout or the Customer Portal,
+ * so a missed webhook still converges.
  */
 import { NextRequest } from 'next/server';
 import { requireAuth, adminClient, json, cors } from '@/lib/supabase';
 import { stripe } from '@/lib/stripe';
+import { applySubscriptionState, updateProfile } from '@/lib/billing';
 import type Stripe from 'stripe';
 
 export async function OPTIONS() { return cors(); }
@@ -24,49 +25,36 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    if (!profile?.stripe_subscription_id) return json({ plan: 'free' });
+    const subId = profile?.stripe_subscription_id as string | undefined;
+    if (!subId) return json({ plan: 'free' });
 
     let sub: Stripe.Subscription;
     try {
-      sub = await stripe.subscriptions.retrieve(profile.stripe_subscription_id, {
-        expand: ['items.data.price'],
-      });
-    } catch {
-      return json({ plan: 'free' });
+      sub = await stripe.subscriptions.retrieve(subId, { expand: ['items.data.price'] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('No such subscription') || msg.includes('resource_missing')) {
+        await updateProfile(supabase, user.id, {
+          tier: 'free',
+          stripe_subscription_id: null,
+          subscription_status: 'canceled',
+          cancel_at_period_end: false,
+        });
+        return json({ plan: 'free', synced: true });
+      }
+      console.error('[billing/sync] Stripe error:', msg);
+      return json({ plan: profile?.tier ?? 'free', stripe_error: msg });
     }
 
-    if (sub.status === 'canceled' || sub.status === 'unpaid') {
-      await supabase.from('profiles').update({
-        tier: 'free', subscription_status: sub.status,
-      }).eq('id', user.id);
-      return json({ plan: 'free' });
-    }
+    const { plan, seatsPurchased } = await applySubscriptionState(supabase, sub, user.id);
+    console.log(`[billing/sync] User ${user.id} → plan=${plan}, status=${sub.status}`);
 
-    // Determine plan from price nickname / metadata
-    const price    = sub.items.data[0]?.price as Stripe.Price;
-    const nickname = (price?.nickname ?? price?.metadata?.plan ?? '').toLowerCase();
-    const plan     = ['pro', 'ai', 'team'].find((p) => nickname.includes(p)) ?? 'pro';
-    const quantity = sub.items.data[0]?.quantity ?? 1;
-
-    const updates: Record<string, unknown> = {
-      tier:                  plan,
-      subscription_status:   sub.status,
-      // current_period_end moved to SubscriptionItem in Stripe v22 (dahlia)
-      current_period_end:    new Date((sub.items.data[0]?.current_period_end ?? 0) * 1000).toISOString(),
-      cancel_at_period_end:  sub.cancel_at_period_end,
-    };
-
-    await supabase.from('profiles').update(updates).eq('id', user.id);
-
-    // Sync team seat count if applicable
-    if (plan === 'team') {
-      await supabase
-        .from('teams')
-        .update({ seats_purchased: quantity })
-        .eq('owner_id', user.id);
-    }
-
-    return json({ plan, seats_purchased: plan === 'team' ? quantity : undefined });
+    return json({
+      plan,
+      synced: true,
+      subscription_status: sub.status,
+      ...(seatsPurchased !== undefined ? { seats_purchased: seatsPurchased } : {}),
+    });
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string };
     return json({ error: e.message ?? 'Internal error' }, e.status ?? 500);

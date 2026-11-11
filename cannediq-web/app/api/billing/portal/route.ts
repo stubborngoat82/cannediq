@@ -6,7 +6,7 @@
  */
 import { NextRequest } from 'next/server';
 import { requireAuth, adminClient, json, cors } from '@/lib/supabase';
-import { stripe, APP_URL, EXT_ID } from '@/lib/stripe';
+import { stripe, APP_URL } from '@/lib/stripe';
 
 export async function OPTIONS() { return cors(); }
 
@@ -26,9 +26,9 @@ export async function POST(req: NextRequest) {
       return json({ error: 'No billing account found. Please subscribe to a plan first.' }, 404);
     }
 
-    const returnUrl = EXT_ID
-      ? `chrome-extension://${EXT_ID}/options.html?tab=billing`
-      : `${APP_URL}/account`;
+    // Stripe requires an https return URL. chrome-extension:// is rejected.
+    // The complete page links back into the extension and asks it to refresh.
+    const returnUrl = `${APP_URL}/billing/complete?status=portal`;
 
     const session = await stripe.billingPortal.sessions.create({
       customer:   customerId,
