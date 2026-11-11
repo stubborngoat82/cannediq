@@ -43,26 +43,31 @@ const Api = (() => {
    * fnName is the legacy Edge Function name — mapped to the new API path.
    */
   const FN_ROUTE_MAP = {
-    'provision-team-member':  `${API_URL}/team/provision`,
-    'reset-member-password':  `${API_URL}/team/reset-password`,
-    'send-team-invite':       `${API_URL}/team/invite`,
-    'accept-team-invite':     `${API_URL}/team/accept-invite`,
-    'billing-checkout':       `${API_URL}/billing/checkout`,
-    'billing-portal':         `${API_URL}/billing/portal`,
-    'sync-billing':           `${API_URL}/billing/sync`,
-    'ai-generate':            `${API_URL}/ai/generate`,
-    'template-store':         `${API_URL}/store`,
-    'template-checkout':      `${API_URL}/store/checkout`,
-    'template-delivery':      `${API_URL}/store/deliver`,
-    'admin-maintenance':      `${API_URL}/admin/maintenance`,
+    'provision-team-member':   `${API_URL}/team/provision`,
+    'reset-member-password':   `${API_URL}/team/reset-password`,
+    'send-team-invite':        `${API_URL}/team/invite`,
+    'accept-team-invite':      `${API_URL}/team/accept-invite`,
+    'billing-checkout':        `${API_URL}/billing/checkout`,
+    'create-checkout-session': `${API_URL}/billing/create-checkout-session`,
+    'billing-portal':          `${API_URL}/billing/portal`,
+    'sync-billing':            `${API_URL}/billing/sync`,
+    'adjust-seats':            `${API_URL}/team/seats`,
+    'ai-generate':             `${API_URL}/ai/generate`,
+    'template-store':          `${API_URL}/store`,
+    'template-checkout':       `${API_URL}/store/checkout`,
+    'template-delivery':       `${API_URL}/store/deliver`,
+    'admin-maintenance':       `${API_URL}/admin/maintenance`,
+    'admin-users':             `${API_URL}/admin/users`,
+    'admin-teams':             `${API_URL}/admin/teams`,
+    'admin-stats':             `${API_URL}/admin/stats`,
   };
 
   async function fnFetch(fnName, body) {
     const session = await Auth.getValidSession();
     if (!session) throw new AuthError('Not authenticated');
 
-    // Route to Next.js API if mapped, otherwise fall back to Supabase Edge Function
-    const url = FN_ROUTE_MAP[fnName] ?? `${SUPABASE_URL}/functions/v1/${fnName}`;
+    const url = FN_ROUTE_MAP[fnName];
+    if (!url) throw new ApiError(`No API route for ${fnName}`, 500, null);
     const res = await fetch(url, {
       method: 'POST',
       headers: {

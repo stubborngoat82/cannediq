@@ -13,10 +13,19 @@
     "activeTab"
   ],
   "host_permissions": [
-    "https://*.supabase.co/*"
+    "https://*.supabase.co/*",
+    "https://cannediq.com/*",
+    "https://www.cannediq.com/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
   ],
   "externally_connectable": {
-    "matches": ["https://cannediq.com/*", "https://www.cannediq.com/*"]
+    "matches": [
+      "https://cannediq.com/*",
+      "https://www.cannediq.com/*",
+      "http://localhost:3000/*",
+      "http://127.0.0.1:3000/*"
+    ]
   },
   "commands": {
     "open-palette": {
@@ -60,7 +69,7 @@
   },
   "options_page": "options.html",
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.supabase.co https://cannediq.com https://www.cannediq.com http://localhost:3000 http://127.0.0.1:3000"
   },
   "action": {
     "default_title": "cannedIQ — Command Launcher"

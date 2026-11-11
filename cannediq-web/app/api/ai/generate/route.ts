@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     if (rpcError) {
       const code = (rpcError as { code?: string }).code;
-      if (code === 'P0001') return json({ error: 'AI commands require a Pro or Team plan. Upgrade from the Options page.' }, 402);
+      if (code === 'P0001') return json({ error: 'AI commands require a Pro or Team plan. Upgrade in the Options page.' }, 402);
       if (code === 'P0003') return json({ error: 'Monthly AI quota reached. Resets at the start of next month.' }, 429);
       console.error('[ai/generate] RPC error:', rpcError);
       return json({ error: 'Usage check failed. Please try again.' }, 500);
@@ -72,7 +72,7 @@ async function callOpenAI(prompt: string): Promise<string> {
       max_tokens: 1024,
       temperature: 0.7,
       messages: [
-        { role: 'system', content: 'You are a helpful assistant. Respond concisely and directly.' },
+        { role: 'system', content: 'You are a helpful assistant. Respond concisely and directly. Do not add preamble or meta-commentary.' },
         { role: 'user', content: prompt },
       ],
     }),
@@ -94,16 +94,29 @@ async function callGemini(prompt: string): Promise<string> {
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
-      systemInstruction: { parts: [{ text: 'You are a helpful assistant. Respond concisely and directly.' }] },
+      systemInstruction: { parts: [{ text: 'You are a helpful assistant. Respond concisely and directly. Do not add preamble or meta-commentary.' }] },
     }),
   });
-  if (!res.ok) throw new Error(`Gemini error ${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new Error(err.error?.message ?? `Gemini error ${res.status}`);
+  }
   const data = await res.json() as { candidates: { content: { parts: { text: string }[] } }[] };
   return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
 }
 
 async function generateText(prompt: string): Promise<{ text: string; provider: string }> {
-  try { return { text: await callOpenAI(prompt), provider: 'openai' }; } catch {}
-  try { return { text: await callGemini(prompt), provider: 'gemini' }; } catch {}
-  throw new Error('AI service temporarily unavailable. Please try again in a moment.');
+  try {
+    return { text: await callOpenAI(prompt), provider: 'openai' };
+  } catch (openAIErr) {
+    console.warn('[ai/generate] OpenAI failed, trying Gemini fallback:', openAIErr);
+  }
+  try {
+    return { text: await callGemini(prompt), provider: 'gemini' };
+  } catch (geminiErr) {
+    console.error('[ai/generate] Gemini fallback also failed:', geminiErr);
+  }
+  const err = new Error('AI service temporarily unavailable. Please try again in a moment.') as Error & { status?: number };
+  err.status = 503;
+  throw err;
 }

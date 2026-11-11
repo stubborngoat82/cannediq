@@ -25,13 +25,18 @@ export async function GET(req: NextRequest) {
 
   if (error) return json({ error: error.message }, 500);
 
-  if (!token) return json({ packs: packs ?? [] });
+  const withFlag = (purchasedIds: Set<string>) => (packs ?? []).map((p: Record<string, unknown>) => ({
+    ...p,
+    purchased: purchasedIds.has(p.id as string),
+  }));
+
+  if (!token) return json({ packs: withFlag(new Set()) });
 
   // Augment with purchase status for authenticated users
   const client = userClient(token);
   const { data: { user } } = await client.auth.getUser();
 
-  if (!user) return json({ packs: packs ?? [] });
+  if (!user) return json({ packs: withFlag(new Set()) });
 
   const { data: purchases } = await supabase
     .from('user_template_purchases')
@@ -50,50 +55,68 @@ export async function GET(req: NextRequest) {
     (teamPurchases ?? []).forEach((p: { pack_id: string }) => purchasedIds.add(p.pack_id));
   }
 
-  return json({
-    packs: (packs ?? []).map((p: Record<string, unknown>) => ({
-      ...p,
-      purchased: purchasedIds.has(p.id as string),
-    })),
-  });
+  return json({ packs: withFlag(purchasedIds) });
 }
 
 export async function POST(req: NextRequest) {
   try {
     const token = getToken(req);
-    if (!token) return json({ error: 'Not authenticated' }, 401);
+    if (!token) return json({ error: 'Sign in to claim templates' }, 401);
 
     const client = userClient(token);
     const { data: { user }, error: authErr } = await client.auth.getUser();
     if (authErr || !user) return json({ error: 'Invalid or expired session' }, 401);
 
-    const body   = await req.json().catch(() => ({}));
-    const packId = body.packId as string;
+    const body = await req.json().catch(() => ({}));
+    const packId = body.packId as string | undefined;
+    const teamId = body.teamId as string | undefined;
     if (!packId) return json({ error: 'packId is required' }, 400);
 
     const supabase = adminClient();
-    const { data: pack } = await supabase
+
+    if (teamId) {
+      const { data: team } = await supabase
+        .from('teams')
+        .select('owner_id')
+        .eq('id', teamId)
+        .single();
+      if (!team || team.owner_id !== user.id) {
+        return json({ error: 'Only the team owner can purchase packs for a team' }, 403);
+      }
+    }
+
+    const { data: pack, error: packErr } = await supabase
       .from('template_packs')
       .select('id, name, price_cents, is_active')
       .eq('id', packId)
       .single();
 
-    if (!pack?.is_active)    return json({ error: 'Template pack not found' }, 404);
-    if (pack.price_cents > 0) return json({ error: 'This is a paid pack. Use /api/store/checkout.' }, 422);
+    if (packErr || !pack) return json({ error: 'Template pack not found' }, 404);
+    if (!pack.is_active) return json({ error: 'This pack is no longer available' }, 410);
+    if (pack.price_cents > 0) {
+      return json({ error: 'This is a paid pack. Use template-checkout to purchase.' }, 422);
+    }
 
-    // Record claim
-    await supabase.from('user_template_purchases').upsert({
-      user_id:      user.id,
-      pack_id:      packId,
+    const purchaseRecord: Record<string, string> = {
+      user_id: user.id,
+      pack_id: packId,
       purchased_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,pack_id', ignoreDuplicates: true });
+      applied_at: new Date().toISOString(),
+    };
+    if (teamId) purchaseRecord.team_id = teamId;
 
-    // Fetch commands
-    const { data: commands } = await supabase
+    const { error: purchaseErr } = await supabase.from('user_template_purchases').upsert(
+      purchaseRecord,
+      { onConflict: 'user_id,pack_id', ignoreDuplicates: false },
+    );
+    if (purchaseErr) return json({ error: purchaseErr.message }, 500);
+
+    const { data: commands, error: cmdErr } = await supabase
       .from('template_commands')
       .select('command_data, sort_order')
       .eq('pack_id', packId)
       .order('sort_order', { ascending: true });
+    if (cmdErr) return json({ error: cmdErr.message }, 500);
 
     return json({
       ok:       true,

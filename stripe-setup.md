@@ -89,13 +89,21 @@ Log in to your AHPushIt LLC Stripe account at https://dashboard.stripe.com
 
 ## 4. Webhook Configuration
 
+The live endpoint is the Next.js server, not the Supabase Edge Function.
+Keep the old Edge Function endpoint registered until the new extension version
+is approved and rolled out. See `MIGRATION.md`.
+
 1. **Developers → Webhooks → Add endpoint**
 2. Endpoint URL:
    ```
-   https://YOUR_SUPABASE_PROJECT.supabase.co/functions/v1/stripe-webhook
+   https://cannediq.com/api/stripe/webhook
    ```
-   Replace `YOUR_SUPABASE_PROJECT` with your actual project ref (e.g., `abcxyzabcxyz`).
-   Find it at: **Supabase Dashboard → Settings → API → Project URL**
+   Local testing with the Stripe CLI:
+   ```
+   stripe listen --forward-to localhost:3000/api/stripe/webhook
+   ```
+   The previous Edge Function URL (`https://<project>.supabase.co/functions/v1/stripe-webhook`)
+   stays in place for users still on the current extension. Do not delete it yet.
 
 3. Select events to listen to:
    - `checkout.session.completed`
