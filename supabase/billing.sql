@@ -74,7 +74,7 @@ BEGIN
   -- Quota by plan
   v_quota := CASE v_plan
     WHEN 'ai'   THEN 500    -- Pro+AI: 500/month
-    WHEN 'pro'  THEN 25     -- Pro: 25/month (legacy)
+    WHEN 'pro'  THEN 100    -- Pro: 100/month
     WHEN 'team' THEN 100    -- Team: 100/month
     ELSE 0
   END;
@@ -149,12 +149,12 @@ SELECT
   END                                                         AS max_stacks,
   plan IN ('pro', 'ai', 'team')                              AS advanced_variables,
   plan IN ('pro', 'ai', 'team')                              AS context_commands,
-  plan IN ('ai')                                             AS ai_commands,
+  plan IN ('pro', 'ai')                                      AS ai_commands,
   plan IN ('team')                                           AS team_stacks,
   CASE plan
     WHEN 'ai'   THEN 500
     WHEN 'team' THEN 100
-    WHEN 'pro'  THEN 25
+    WHEN 'pro'  THEN 100
     ELSE 0
   END                                                         AS ai_quota
 FROM public.profiles;

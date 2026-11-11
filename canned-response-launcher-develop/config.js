@@ -15,27 +15,30 @@ const ENV = 'development';   // 'development' | 'production'
 
 const ENVIRONMENTS = {
   production: {
-    SUPABASE_URL:      'https://kihuepwhrftjgmglnxnc.supabase.co',
-    SUPABASE_ANON:     'sb_publishable_j7PL9l3pZCmnPEsLUI10eQ_xYQQyJbW',
-    // Stripe Customer Portal — shareable link from Stripe Dashboard → Billing → Customer portal
-    STRIPE_PORTAL_URL: 'https://billing.stripe.com/p/login/9B6bJ11gD8CO7IE3XMgUM00',
+    SUPABASE_URL:  'https://kihuepwhrftjgmglnxnc.supabase.co',
+    SUPABASE_ANON: 'sb_publishable_j7PL9l3pZCmnPEsLUI10eQ_xYQQyJbW',
+    // Next.js web app — all API calls and page links go here
+    APP_URL:       'https://cannediq.com',
   },
   development: {
-    SUPABASE_URL:      'https://kjwuykwnjchmpcdwbybn.supabase.co',
-    SUPABASE_ANON:     'sb_publishable_zzQ34lMEuG_z04O3KWo3gA_TQANzlxE',
-    // TODO: replace with a Stripe TEST-mode customer portal link for dev billing flows.
-    STRIPE_PORTAL_URL: 'https://billing.stripe.com/p/login/9B6bJ11gD8CO7IE3XMgUM00',
+    SUPABASE_URL:  'https://kjwuykwnjchmpcdwbybn.supabase.co',
+    SUPABASE_ANON: 'sb_publishable_zzQ34lMEuG_z04O3KWo3gA_TQANzlxE',
+    // Local Next.js dev server
+    APP_URL:       'http://localhost:3000',
   },
 };
 
 // ── Resolved values ─────────────────────────────────────────────────────────────
-const SUPABASE_URL      = ENVIRONMENTS[ENV].SUPABASE_URL;
-const SUPABASE_ANON     = ENVIRONMENTS[ENV].SUPABASE_ANON;
-const STRIPE_PORTAL_URL = ENVIRONMENTS[ENV].STRIPE_PORTAL_URL;
+const SUPABASE_URL  = ENVIRONMENTS[ENV].SUPABASE_URL;
+const SUPABASE_ANON = ENVIRONMENTS[ENV].SUPABASE_ANON;
+const APP_URL       = ENVIRONMENTS[ENV].APP_URL;
 
 // Derived endpoints — don't edit these
 const AUTH_URL = `${SUPABASE_URL}/auth/v1`;
 const REST_URL = `${SUPABASE_URL}/rest/v1`;
+
+// Next.js API base — all Edge Function calls now go here instead of Supabase
+const API_URL = `${APP_URL}/api`;
 
 // Verbose logging: on in development, off in production. Never ship production as true.
 const DEBUG = ENV === 'development';

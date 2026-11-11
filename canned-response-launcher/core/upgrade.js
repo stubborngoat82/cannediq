@@ -15,6 +15,9 @@
 
 const CRLUpgrade = (() => {
 
+  // Active Escape-key handler, removed in hide() regardless of how the modal closes
+  let _onKey = null;
+
   // ── Context definitions ───────────────────────────────────────────────────────
 
   const CONTEXTS = {
@@ -61,8 +64,8 @@ const CRLUpgrade = (() => {
 
   function startCheckout(plan) {
     if (!plan) {
-      // Open pricing page
-      chrome.runtime.sendMessage({ type: 'OPEN_TAB', url: 'https://cannediq.com/pricing' });
+      // Open pricing page on the Next.js app
+      chrome.runtime.sendMessage({ type: 'OPEN_TAB', url: `${APP_URL}/pricing` });
       return;
     }
     chrome.runtime.sendMessage({ type: 'BILLING_CHECKOUT', plan }, (res) => {
@@ -70,7 +73,7 @@ const CRLUpgrade = (() => {
         chrome.runtime.sendMessage({ type: 'OPEN_TAB', url: res.url });
       } else {
         // Fallback — open pricing page
-        chrome.runtime.sendMessage({ type: 'OPEN_TAB', url: 'https://cannediq.com/pricing' });
+        chrome.runtime.sendMessage({ type: 'OPEN_TAB', url: `${APP_URL}/pricing` });
       }
     });
   }
@@ -184,16 +187,15 @@ const CRLUpgrade = (() => {
       if (e.target === modal) hide();
     });
 
-    // Escape key
-    const onKey = (e) => {
-      if (e.key === 'Escape') { hide(); document.removeEventListener('keydown', onKey); }
-    };
-    document.addEventListener('keydown', onKey);
+    // Escape key — removed in hide() so it never leaks across dismissals
+    _onKey = (e) => { if (e.key === 'Escape') hide(); };
+    document.addEventListener('keydown', _onKey);
   }
 
   function hide() {
     const modal = document.getElementById('crl-upgrade-modal');
     if (!modal) return;
+    if (_onKey) { document.removeEventListener('keydown', _onKey); _onKey = null; }
     modal.classList.remove('crl-upgrade-modal--visible');
     setTimeout(() => modal.remove(), 250);
   }

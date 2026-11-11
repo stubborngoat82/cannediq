@@ -57,8 +57,8 @@ Team admins can publish a shared command library that syncs automatically to eve
 
 **Plans:**
 • **Free** — Up to 25 commands, 3 stacks, instant palette & slash triggers
-• **Pro** — Unlimited commands, stacks, and context-aware conditions
-• **Pro + AI** — Everything in Pro, plus AI command generation (100 credits/month)
+• **Pro** — Unlimited commands, stacks, context-aware conditions, and AI command generation (100 credits/month)
+• **Pro + AI** — Everything in Pro, plus 500 AI credits/month with tone controls & prompt templates
 • **Team** — Shared command libraries, member management, per-seat billing
 
 Full pricing at cannediq.com/pricing

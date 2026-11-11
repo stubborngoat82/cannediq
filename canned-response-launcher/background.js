@@ -199,7 +199,7 @@ async function handleAIGenerate({ prompt, context }) {
     throw new Error('Sign in to use AI commands. AI is available on Pro and Team plans.');
   }
 
-  const endpoint = `${SUPABASE_URL}/functions/v1/ai-generate`;
+  const endpoint = `${API_URL}/ai/generate`;
 
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -222,7 +222,7 @@ async function handleAIGenerate({ prompt, context }) {
 
 // ── 7. Billing proxy ──────────────────────────────────────────────────────────
 //
-// All Stripe API calls happen server-side via Supabase Edge Functions.
+// All Stripe API calls happen server-side via the Next.js app API.
 // The background script holds the JWT and forwards requests — never exposes
 // the Stripe secret key to content scripts or the options page.
 
@@ -231,7 +231,7 @@ async function handleBillingCheckout({ plan, quantity = 1 }) {
   try { session = await Auth.getValidSession(); } catch {}
   if (!session) throw new Error('Sign in to manage billing.');
 
-  const endpoint = `${SUPABASE_URL}/functions/v1/billing-checkout`;
+  const endpoint = `${API_URL}/billing/checkout`;
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -251,7 +251,7 @@ async function handleBillingPortal() {
   try { session = await Auth.getValidSession(); } catch {}
   if (!session) throw new Error('Sign in to manage billing.');
 
-  const endpoint = `${SUPABASE_URL}/functions/v1/billing-portal`;
+  const endpoint = `${API_URL}/billing/portal`;
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -287,7 +287,7 @@ async function refreshUserPlan({ syncFromStripe = false } = {}) {
   // Pull authoritative data from Stripe before reading DB (post-checkout path)
   if (syncFromStripe) {
     try {
-      await fetch(`${SUPABASE_URL}/functions/v1/sync-billing`, {
+      await fetch(`${API_URL}/billing/sync`, {
         method:  'POST',
         headers: {
           'Content-Type':  'application/json',
@@ -351,7 +351,7 @@ fetchMaintenanceConfig();
 
 async function fetchMaintenanceConfig() {
   try {
-    const res  = await fetch(`${SUPABASE_URL}/functions/v1/admin-maintenance`);
+    const res  = await fetch(`${API_URL}/admin/maintenance`);
     if (!res.ok) return;
     const data = await res.json();
     const config = {
@@ -360,13 +360,13 @@ async function fetchMaintenanceConfig() {
     };
     await chrome.storage.local.set({ maintenanceConfig: config });
 
-    // Broadcast to all content script tabs
+    // Broadcast to all content script tabs in parallel — one slow/unresponsive
+    // tab must not delay the rest. Rejections (tabs without a content script)
+    // are expected and swallowed by allSettled.
     const tabs = await chrome.tabs.query({});
-    for (const tab of tabs) {
-      try {
-        await chrome.tabs.sendMessage(tab.id, { type: 'MAINTENANCE_UPDATE', config });
-      } catch { /* tab may not have content script */ }
-    }
+    await Promise.allSettled(
+      tabs.map((tab) => chrome.tabs.sendMessage(tab.id, { type: 'MAINTENANCE_UPDATE', config }))
+    );
   } catch (e) {
     DEBUG && console.warn('[CRL] Maintenance config fetch failed:', e.message);
   }
@@ -450,28 +450,36 @@ async function syncTeamTemplatePacks(session) {
       (data.commands ?? []).filter((c) => c._templatePackId).map((c) => c._templatePackId)
     );
 
-    for (const pack of teamPurchased) {
-      if (appliedPackIds.has(pack.id)) continue; // already applied
+    // Deliver all un-applied packs in parallel (don't serialize network round-trips)
+    const toApply = teamPurchased.filter((pack) => !appliedPackIds.has(pack.id));
+    if (!toApply.length) return;
 
-      // Deliver and apply
+    const delivered = await Promise.all(toApply.map(async (pack) => {
       const deliverRes = await fetch(`${SUPABASE_URL}/functions/v1/template-delivery`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body:    JSON.stringify({ packId: pack.id }),
       });
-      if (!deliverRes.ok) continue;
+      if (!deliverRes.ok) return null;
       const { commands } = await deliverRes.json().catch(() => ({ commands: [] }));
-      if (!commands?.length) continue;
+      return commands?.length ? { pack, commands } : null;
+    }));
 
-      // Write to storage
-      const freshData = await CRLStorage.read();
-      const stackId   = `tpl_${pack.id.replace(/-/g, '').slice(0, 16)}`;
-      freshData.stacks = freshData.stacks ?? [];
+    // Apply everything with a single read/write of local storage
+    const freshData = await CRLStorage.read();
+    freshData.stacks   = freshData.stacks   ?? [];
+    freshData.commands = freshData.commands ?? [];
+    const now = new Date().toISOString();
+    let applied = 0;
+
+    for (const entry of delivered) {
+      if (!entry) continue;
+      const { pack, commands } = entry;
+      const stackId = `tpl_${pack.id.replace(/-/g, '').slice(0, 16)}`;
       if (!freshData.stacks.find((s) => s.id === stackId)) {
         freshData.stacks.push({ id: stackId, name: pack.name, color: '#6366f1', icon: 'template' });
       }
-      freshData.commands = (freshData.commands ?? []).filter((c) => c._templatePackId !== pack.id);
-      const now = new Date().toISOString();
+      freshData.commands = freshData.commands.filter((c) => c._templatePackId !== pack.id);
       freshData.commands.push(...commands.map((tmpl) => ({
         id:              CRLStorage.genId('cmd'),
         name:            tmpl.name        ?? 'Untitled',
@@ -488,9 +496,11 @@ async function syncTeamTemplatePacks(session) {
         createdAt:       now,
         _templatePackId: pack.id,
       })));
-      await CRLStorage.write(freshData);
+      applied++;
       DEBUG && console.log(`[CRL] Applied team template pack: ${pack.name}`);
     }
+
+    if (applied) await CRLStorage.write(freshData);
   } catch (err) {
     DEBUG && console.warn('[CRL] Team template pack sync failed:', err.message);
   }

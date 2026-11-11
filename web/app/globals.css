@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html { background: #0F172A; scroll-behavior: smooth; }
+  body {
+    background: #0F172A;
+    color: #F8FAFC;
+    font-family: var(--font-inter), system-ui, sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  a { text-decoration: none; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 99px; }
+}
+
+/* ── Components ── */
+@layer components {
+  /* Logo pill */
+  .logo-pill {
+    background: rgba(255,255,255,.97);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+  }
+  .logo-pill-lg {
+    background: rgba(255,255,255,.97);
+    border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(0,0,0,.3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+  }
+
+  /* Nav blur */
+  .nav-blur {
+    background: rgba(15,23,42,.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+
+  /* Glass card */
+  .glass {
+    background: rgba(17,24,39,.7);
+    border: 1px solid rgba(255,255,255,.07);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Gradient text */
+  .grad-text {
+    background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 60%, #F472B6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .grad-text-blue {
+    background: linear-gradient(90deg, #3B82F6, #8B5CF6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow utilities */
+  .glow-blue   { box-shadow: 0 0 60px -10px rgba(59,130,246,.35); }
+  .glow-violet { box-shadow: 0 0 60px -10px rgba(139,92,246,.35); }
+  .glow-dual   { box-shadow: 0 0 80px -10px rgba(59,130,246,.25), 0 0 80px -10px rgba(139,92,246,.2); }
+
+  /* Grid bg */
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(59,130,246,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Button variants */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn-primary:hover { opacity: .9; }
+  .btn-primary:active { transform: scale(.98); }
+
+  /* Scroll reveal */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+}

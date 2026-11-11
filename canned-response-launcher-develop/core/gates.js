@@ -31,11 +31,11 @@ const CRLGates = (() => {
     pro: {
       maxCommands:        Infinity,
       maxStacks:          Infinity,
-      ai:                 false,
+      ai:                 true,
       context:            true,
       advancedVariables:  true,
       team:               false,
-      aiCredits:          0,
+      aiCredits:          100,
       label:              'Pro',
     },
     ai: {

@@ -47,7 +47,7 @@ BEGIN
 
   -- Quota lookup
   v_quota := CASE v_tier
-    WHEN 'pro'  THEN 25
+    WHEN 'pro'  THEN 100
     WHEN 'team' THEN 100
     ELSE 0
   END;
@@ -76,7 +76,7 @@ SELECT
   tier,
   ai_requests_this_month    AS used,
   CASE tier
-    WHEN 'pro'  THEN 25
+    WHEN 'pro'  THEN 100
     WHEN 'team' THEN 100
     ELSE 0
   END                       AS quota,

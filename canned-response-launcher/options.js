@@ -206,8 +206,11 @@
 
   function startProfileWatcher() {
     stopProfileWatcher();
+    let busy = false;
     _profileWatcherTimer = setInterval(async () => {
-      if (!currentUser) return;
+      // Skip when backgrounded, signed out, or a previous poll is still in flight
+      if (busy || document.hidden || !currentUser) return;
+      busy = true;
       try {
         const freshProfile = await Api.getProfile();
         if (!freshProfile) return;
@@ -234,6 +237,8 @@
         }
       } catch {
         // Silently swallow — network blips shouldn't disrupt the UX
+      } finally {
+        busy = false;
       }
     }, 30_000);
   }
@@ -498,10 +503,18 @@
 
   function wireCommandsTab() {
     document.getElementById('btn-new-command').addEventListener('click', () => openCommandModal(null));
+    let _searchTimer;
     document.getElementById('cmd-search').addEventListener('input', (e) => {
-      filterQuery = e.target.value.toLowerCase();
-      renderCommandList();
+      const v = e.target.value.toLowerCase();
+      clearTimeout(_searchTimer);
+      _searchTimer = setTimeout(() => { filterQuery = v; renderCommandList(); }, 120);
     });
+  }
+
+  // Lowercase, pre-joined searchable text for a command (name/desc/template/triggers).
+  function searchBlob(c) {
+    return `${c.name} ${c.description || ''} ${c.template || ''} ` +
+           `${(c.triggers || []).map((t) => t.value || '').join(' ')}`.toLowerCase();
   }
 
   async function loadCommandsTab() {
@@ -510,8 +523,13 @@
       CRLStorage.getStacks(),
     ]);
 
-    // Separate personal commands from team-synced commands
-    allCommands = rawCmds.filter((c) => !c._isTeam);
+    // Separate personal commands from team-synced commands.
+    // Precompute a lowercase search blob so filtering is a single .includes
+    // per command instead of re-lowercasing 4 fields on every keystroke.
+    allCommands = rawCmds.filter((c) => !c._isTeam).map((c) => ({
+      ...c,
+      _search: searchBlob(c),
+    }));
     allStacks   = stacks;
 
     // Group team commands by team for the read-only sidebar section
@@ -526,7 +544,7 @@
           cmds:  [],
         };
       }
-      teamGroups[key].cmds.push(c);
+      teamGroups[key].cmds.push({ ...c, _search: searchBlob(c) });
     });
 
     // Reset selection to personal view if previously on a team that no longer exists
@@ -566,8 +584,14 @@
     const allCount = allCommands.length;
     list.appendChild(makeItem('all', 'All My Commands', '#9ca3af', allCount));
 
+    // Tally command counts per stack in a single pass (avoids O(stacks×commands))
+    const countByStack = new Map();
+    for (const c of allCommands) {
+      countByStack.set(c.stackId, (countByStack.get(c.stackId) || 0) + 1);
+    }
+
     allStacks.forEach((s) => {
-      const count = allCommands.filter((c) => c.stackId === s.id).length;
+      const count = countByStack.get(s.id) || 0;
       const li = makeItem(s.id, s.name, s.color, count);
 
       // Edit / delete on hover
@@ -657,12 +681,7 @@
       // Stack filter only applies in personal view
       if (!isTeamView && selectedStack !== 'all' && cmd.stackId !== selectedStack) return false;
       if (!filterQuery) return true;
-      return (
-        cmd.name.toLowerCase().includes(filterQuery) ||
-        (cmd.description || '').toLowerCase().includes(filterQuery) ||
-        (cmd.template    || '').toLowerCase().includes(filterQuery) ||
-        (cmd.triggers || []).some((t) => (t.value || '').toLowerCase().includes(filterQuery))
-      );
+      return (cmd._search ?? searchBlob(cmd)).includes(filterQuery);
     });
 
     // Favorites first (personal only), then usage
@@ -674,6 +693,9 @@
     }
 
     document.getElementById('cmd-panel-count').textContent = cmds.length;
+
+    // Lookup stack metadata in O(1) rather than .find per command
+    const stackById = new Map(allStacks.map((s) => [s.id, s]));
 
     if (cmds.length === 0) {
       const empty = document.createElement('div');
@@ -692,7 +714,7 @@
     cmds.forEach((cmd) => {
       const stack = isTeamView
         ? { name: teamGroups[teamId]?.name ?? 'Team', color: teamGroups[teamId]?.color }
-        : allStacks.find((s) => s.id === cmd.stackId);
+        : stackById.get(cmd.stackId);
       const triggers  = (cmd.triggers || []).map((t) => t.value).join('  ');
       const typeClass = TYPE_CLASS[cmd.commandType] || '';
       const typeLabel = TYPE_LABEL[cmd.commandType] || cmd.commandType;
@@ -2111,7 +2133,7 @@
       const row  = Array.isArray(rows) ? rows[0] : null;
 
       const used     = row?.used     ?? 0;
-      const quota    = row?.quota    ?? (tier === 'team' ? 100 : 25);
+      const quota    = row?.quota    ?? (tier === 'ai' ? 500 : 100);
       const resetsAt = row?.resets_at ? new Date(row.resets_at) : null;
       const resetStr = resetsAt
         ? resetsAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -2136,7 +2158,7 @@
           <div class="ai-usage-bar-fill" style="width:${pct}%;background:${barColor}"></div>
         </div>
         <p style="font-size:12px;color:#6b7280;margin:0">
-          ${tier === 'team' ? '100 requests/month · Team plan' : '25 requests/month · Pro plan'}
+          ${tier === 'team' ? '100 requests/month · Team plan' : tier === 'ai' ? '500 requests/month · Pro+ AI plan' : '100 requests/month · Pro plan'}
           &nbsp;·&nbsp; Powered by GPT-4o mini
         </p>
       </div>`;
@@ -2149,7 +2171,7 @@
           <span style="font-size:22px">🔒</span>
           <div>
             <div style="font-size:13px;font-weight:600;color:#111827">AI commands are a Pro feature</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px">Upgrade to Pro to get 25 AI requests/month. No API key needed.</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Upgrade to Pro to get 100 AI requests/month. No API key needed.</div>
           </div>
         </div>
         <button id="btn-ai-upgrade" class="btn btn-primary btn-sm">Upgrade to Pro →</button>

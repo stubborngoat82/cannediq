@@ -38,12 +38,31 @@ const Api = (() => {
     return data;
   }
 
-  /** Call a Supabase Edge Function (under /functions/v1/). */
+  /**
+   * Call a Next.js API route (previously a Supabase Edge Function).
+   * fnName is the legacy Edge Function name — mapped to the new API path.
+   */
+  const FN_ROUTE_MAP = {
+    'provision-team-member':  `${API_URL}/team/provision`,
+    'reset-member-password':  `${API_URL}/team/reset-password`,
+    'send-team-invite':       `${API_URL}/team/invite`,
+    'accept-team-invite':     `${API_URL}/team/accept-invite`,
+    'billing-checkout':       `${API_URL}/billing/checkout`,
+    'billing-portal':         `${API_URL}/billing/portal`,
+    'sync-billing':           `${API_URL}/billing/sync`,
+    'ai-generate':            `${API_URL}/ai/generate`,
+    'template-store':         `${API_URL}/store`,
+    'template-checkout':      `${API_URL}/store/checkout`,
+    'template-delivery':      `${API_URL}/store/deliver`,
+    'admin-maintenance':      `${API_URL}/admin/maintenance`,
+  };
+
   async function fnFetch(fnName, body) {
     const session = await Auth.getValidSession();
     if (!session) throw new AuthError('Not authenticated');
 
-    const url = `${SUPABASE_URL}/functions/v1/${fnName}`;
+    // Route to Next.js API if mapped, otherwise fall back to Supabase Edge Function
+    const url = FN_ROUTE_MAP[fnName] ?? `${SUPABASE_URL}/functions/v1/${fnName}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -514,7 +533,7 @@ const Api = (() => {
     const session = await Auth.getValidSession();
     if (!session) throw new Error('Not authenticated');
 
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/adjust-seats`, {
+    const res = await fetch(`${API_URL}/team/seats`, {
       method: 'POST',
       headers: {
         'Content-Type':  'application/json',
@@ -614,7 +633,17 @@ const Api = (() => {
    * @param {number} [seats] — only used for the team plan
    */
   async function createCheckoutSession(plan, seats = 1) {
-    return fnFetch('create-checkout-session', { plan, seats });
+    // Now goes to Next.js API instead of Supabase Edge Function
+    const session = await Auth.getValidSession();
+    if (!session) throw new AuthError('Not authenticated');
+    const res = await fetch(`${API_URL}/billing/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ plan, quantity: seats }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(data.error ?? 'Checkout error', res.status, data);
+    return data;
   }
 
   // ── Normalise helpers ─────────────────────────────────────────────────────────
@@ -641,7 +670,7 @@ const Api = (() => {
     const session = await Auth.getValidSession().catch(() => null);
     const headers = { 'Content-Type': 'application/json' };
     if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-store`, { headers });
+    const res = await fetch(`${API_URL}/store`, { headers });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || 'Failed to load templates');
     return data.packs ?? [];
@@ -651,7 +680,7 @@ const Api = (() => {
   async function claimTemplatePack(packId) {
     const session = await Auth.getValidSession();
     if (!session) throw new AuthError('Not authenticated');
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-store`, {
+    const res = await fetch(`${API_URL}/store`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
       body: JSON.stringify({ packId }),
@@ -665,7 +694,7 @@ const Api = (() => {
   async function checkoutTemplatePack(packId) {
     const session = await Auth.getValidSession();
     if (!session) throw new AuthError('Not authenticated');
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-checkout`, {
+    const res = await fetch(`${API_URL}/store/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
       body: JSON.stringify({ packId }),
@@ -682,7 +711,7 @@ const Api = (() => {
     const session = await Auth.getValidSession();
     if (!session) throw new AuthError('Not authenticated');
     const body = sessionId ? { packId, sessionId } : { packId };
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/template-delivery`, {
+    const res = await fetch(`${API_URL}/store/deliver`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
       body: JSON.stringify(body),

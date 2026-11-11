@@ -49,7 +49,7 @@ BEGIN
 
   -- Determine quota by tier
   CASE v_tier
-    WHEN 'pro'  THEN v_quota := 25;
+    WHEN 'pro'  THEN v_quota := 100;
     WHEN 'ai'   THEN v_quota := 500;
     WHEN 'team' THEN v_quota := 100;
     ELSE
@@ -97,7 +97,7 @@ SELECT
   tier,
   ai_requests_this_month                                    AS used,
   CASE tier
-    WHEN 'pro'  THEN 25
+    WHEN 'pro'  THEN 100
     WHEN 'ai'   THEN 500
     WHEN 'team' THEN 100
     ELSE 0

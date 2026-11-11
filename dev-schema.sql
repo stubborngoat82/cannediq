@@ -246,7 +246,7 @@ BEGIN
   -- Quota by plan
   v_quota := CASE v_plan
     WHEN 'ai'   THEN 500    -- Pro+AI: 500/month
-    WHEN 'pro'  THEN 25     -- Pro: 25/month (legacy)
+    WHEN 'pro'  THEN 100    -- Pro: 100/month
     WHEN 'team' THEN 100    -- Team: 100/month
     ELSE 0
   END;
@@ -967,7 +967,8 @@ CREATE OR REPLACE VIEW "public"."ai_usage" WITH ("security_invoker"='true') AS
     "tier",
     "ai_requests_this_month" AS "used",
         CASE "tier"
-            WHEN 'pro'::"text" THEN 25
+            WHEN 'ai'::"text" THEN 500
+            WHEN 'pro'::"text" THEN 100
             WHEN 'team'::"text" THEN 100
             ELSE 0
         END AS "quota",
